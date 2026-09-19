@@ -1,115 +1,190 @@
 import { useSyncExternalStore } from 'react';
-import type { Exam, Prefs, Task } from '../types';
+import {
+  canonical, defaultLocal, emptySynced, mergeSynced, migrateV1, normalizeSynced, uid,
+  type Exam, type LocalState, type SyncedState, type Todo,
+} from './state';
 
 /**
- * The app's OWN data: check-offs, user-entered tasks/exams, preferences.
- * Stored in localStorage on this device only. Nothing here is ever sent to or read
- * back from Notion.
+ * The app's OWN data (to-dos, exams, check-offs, preferences) in localStorage on this device.
+ * Nothing here is ever written to Notion; the optional sync (lib/sync.ts) talks to GitHub only.
  */
-export interface PersonalState {
-  /** Overrides for Notion tasks: id -> done? */
-  taskDone: Record<string, boolean>;
-  localTasks: Task[];
-  exams: Exam[];
-  prefs: Prefs;
-  theme: 'system' | 'light' | 'dark';
-  recent: string[];
+export interface Personal {
+  synced: SyncedState;
+  local: LocalState;
 }
 
-export const defaultPersonal: PersonalState = {
-  taskDone: {},
-  localTasks: [],
-  exams: [],
-  prefs: { biweeklyParity: null, choices: {} },
-  theme: 'system',
-  recent: [],
-};
+const KEY = 'eth-cc:v2';
+const V1_KEY = 'eth-cc:v1';
 
-const KEY = 'eth-cc:v1';
-
-function load(): PersonalState {
+function storage(): Storage | null {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
-    if (raw) {
-      const parsed = JSON.parse(raw) as Partial<PersonalState>;
-      return {
-        ...defaultPersonal,
-        ...parsed,
-        prefs: { ...defaultPersonal.prefs, ...parsed.prefs, choices: { ...parsed.prefs?.choices } },
-      };
-    }
+    return typeof localStorage !== 'undefined' ? localStorage : null;
   } catch {
-    /* storage unavailable or corrupt – start fresh */
+    return null;
   }
-  return defaultPersonal;
 }
 
-let state = load();
-const listeners = new Set<() => void>();
+function load(): Personal {
+  const ls = storage();
+  try {
+    const raw = ls?.getItem(KEY);
+    if (raw) {
+      const p = JSON.parse(raw) as Partial<Personal>;
+      return { synced: normalizeSynced(p.synced), local: { ...defaultLocal(), ...p.local } };
+    }
+    const v1 = ls?.getItem(V1_KEY);
+    if (v1) return migrateV1(JSON.parse(v1));
+  } catch {
+    /* corrupt storage – start fresh */
+  }
+  return { synced: emptySynced(), local: defaultLocal() };
+}
 
-function commit(next: PersonalState) {
+let state: Personal = load();
+const listeners = new Set<() => void>();
+const syncedListeners = new Set<() => void>();
+
+function commit(next: Personal, syncedChanged: boolean, notifySync = true) {
   state = next;
   try {
-    localStorage.setItem(KEY, JSON.stringify(state));
+    storage()?.setItem(KEY, JSON.stringify(state));
   } catch {
     /* private mode / quota – keep in memory */
   }
   listeners.forEach((l) => l());
+  if (syncedChanged && notifySync) syncedListeners.forEach((l) => l());
 }
 
-export const getPersonal = () => state;
-export const usePersonal = () =>
-  useSyncExternalStore(
-    (cb) => {
-      listeners.add(cb);
-      return () => listeners.delete(cb);
-    },
-    () => state,
-    () => state,
-  );
+const subscribe = (cb: () => void) => {
+  listeners.add(cb);
+  return () => {
+    listeners.delete(cb);
+  };
+};
 
-const uid = (p: string) => `${p}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+export const getPersonal = () => state;
+export const usePersonal = () => useSyncExternalStore(subscribe, getPersonal, getPersonal);
+
+/** The sync module registers here: called after every local change of synced data. */
+export function onSyncedChange(cb: () => void) {
+  syncedListeners.add(cb);
+  return () => {
+    syncedListeners.delete(cb);
+  };
+}
+
+/** Used by the sync: adopt a merge result without triggering another sync round. */
+export function applyMerged(merged: SyncedState) {
+  if (canonical(merged) === canonical(state.synced)) return;
+  commit({ ...state, synced: merged }, true, false);
+}
+
+const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state, synced: fn(state.synced) }, true);
+const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
+const now = () => Date.now();
+
+type RecordKind = 'todos' | 'exams';
+
+function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
+  updateSynced((s) => {
+    const tombstones = { ...s.tombstones };
+    delete tombstones[rec.id];
+    return { ...s, [kind]: { ...s[kind], [rec.id]: rec }, tombstones } as SyncedState;
+  });
+}
+
+function remove(kind: RecordKind, ids: string[]) {
+  if (ids.length === 0) return;
+  updateSynced((s) => {
+    const records = { ...s[kind] };
+    const tombstones = { ...s.tombstones };
+    for (const id of ids) {
+      delete records[id];
+      tombstones[id] = now();
+    }
+    return { ...s, [kind]: records, tombstones } as SyncedState;
+  });
+}
 
 export const actions = {
-  setTaskDone(id: string, done: boolean, local: boolean) {
-    if (local) {
-      commit({
-        ...state,
-        localTasks: state.localTasks.map((t) => (t.id === id ? { ...t, status: done ? 'done' : 'not-started' } : t)),
-      });
-    } else {
-      commit({ ...state, taskDone: { ...state.taskDone, [id]: done } });
-    }
+  addTodo(input: { courseId: string; text: string; due?: string }): string {
+    const id = uid('todo');
+    const t = now();
+    put('todos', { id, courseId: input.courseId, text: input.text.trim(), due: input.due || undefined, done: false, createdAt: t, updatedAt: t });
+    updateLocal({ lastCourse: input.courseId });
+    return id;
   },
-  addTask(t: Omit<Task, 'id' | 'status' | 'category'>) {
-    commit({ ...state, localTasks: [...state.localTasks, { ...t, id: uid('task'), status: 'not-started', category: 'Persönlich' }] });
+  updateTodo(id: string, patch: Partial<Pick<Todo, 'text' | 'due' | 'courseId' | 'done'>>) {
+    const cur = state.synced.todos[id];
+    if (!cur) return;
+    const next: Todo = { ...cur, ...patch, updatedAt: now() };
+    if ('due' in patch && !patch.due) delete next.due;
+    put('todos', next);
   },
-  removeTask(id: string) {
-    commit({ ...state, localTasks: state.localTasks.filter((t) => t.id !== id) });
+  setTodoDone(id: string, done: boolean) {
+    actions.updateTodo(id, { done });
   },
-  addExam(e: Omit<Exam, 'id'>) {
-    commit({ ...state, exams: [...state.exams, { ...e, id: uid('exam') }] });
+  /** Returns the removed to-do so the caller can offer "Rückgängig" */
+  deleteTodo(id: string): Todo | undefined {
+    const cur = state.synced.todos[id];
+    remove('todos', [id]);
+    return cur;
   },
-  removeExam(id: string) {
-    commit({ ...state, exams: state.exams.filter((e) => e.id !== id) });
+  restoreTodo(todo: Todo) {
+    put('todos', { ...todo, updatedAt: now() });
   },
-  setParity(p: Prefs['biweeklyParity']) {
-    commit({ ...state, prefs: { ...state.prefs, biweeklyParity: p } });
+  clearDoneTodos(courseId?: string) {
+    const ids = Object.values(state.synced.todos)
+      .filter((t) => t.done && (!courseId || t.courseId === courseId))
+      .map((t) => t.id);
+    remove('todos', ids);
+    return ids.length;
+  },
+
+  saveExam(input: Omit<Exam, 'id' | 'updatedAt'> & { id?: string }) {
+    put('exams', { ...input, id: input.id ?? uid('exam'), location: input.location || undefined, updatedAt: now() });
+  },
+  deleteExam(id: string): Exam | undefined {
+    const cur = state.synced.exams[id];
+    remove('exams', [id]);
+    return cur;
+  },
+  restoreExam(exam: Exam) {
+    put('exams', { ...exam, updatedAt: now() });
+  },
+
+  /** Check off a Notion task – stored only in this app */
+  setTaskDone(taskId: string, done: boolean) {
+    updateSynced((s) => ({ ...s, taskDone: { ...s.taskDone, [taskId]: { done, updatedAt: now() } } }));
+  },
+
+  setParity(p: 'odd' | 'even' | null) {
+    updateSynced((s) => ({ ...s, prefs: { ...s.prefs, biweeklyParity: p, updatedAt: now() } }));
   },
   setChoice(group: string, sessionId: string | null) {
-    const choices = { ...state.prefs.choices };
-    if (sessionId) choices[group] = sessionId;
-    else delete choices[group];
-    commit({ ...state, prefs: { ...state.prefs, choices } });
+    updateSynced((s) => {
+      const choices = { ...s.prefs.choices };
+      if (sessionId) choices[group] = sessionId;
+      else delete choices[group];
+      return { ...s, prefs: { ...s.prefs, choices, updatedAt: now() } };
+    });
   },
-  setTheme(theme: PersonalState['theme']) {
-    commit({ ...state, theme });
+
+  setTheme(theme: LocalState['theme']) {
+    updateLocal({ theme });
   },
   touchCourse(id: string) {
-    if (state.recent[0] === id) return;
-    commit({ ...state, recent: [id, ...state.recent.filter((r) => r !== id)].slice(0, 4) });
+    if (state.local.recent[0] === id) return;
+    updateLocal({ recent: [id, ...state.local.recent.filter((r) => r !== id)].slice(0, 4) });
   },
-  resetAll() {
-    commit(defaultPersonal);
+
+  /** Merge a backup file into the current data (nothing is overwritten blindly) */
+  importBackup(raw: unknown) {
+    updateSynced((s) => mergeSynced(s, normalizeSynced(raw)));
+  },
+  /** Deletes all own to-dos and exams – on every synced device */
+  deleteAllOwn() {
+    remove('todos', Object.keys(state.synced.todos));
+    remove('exams', Object.keys(state.synced.exams));
   },
 };

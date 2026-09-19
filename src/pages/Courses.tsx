@@ -1,13 +1,16 @@
 import { Link } from 'react-router-dom';
 import { CourseRow } from '../components/course';
+import { SyncBadge } from '../components/Nav';
 import { Icon } from '../components/ui';
-import { COURSES, useDeadlines } from '../lib/data';
-import { useNow } from '../lib/now';
 import { seed } from '../data/seed';
+import { COURSES, useItems } from '../lib/data';
+import { useTitle } from '../lib/hooks';
+import { useNow } from '../lib/now';
 
 export function CoursesPage() {
+  useTitle('Kurse');
   const now = useNow();
-  const deadlines = useDeadlines();
+  const items = useItems();
   return (
     <>
       <header className="page-head">
@@ -18,26 +21,27 @@ export function CoursesPage() {
       </header>
 
       <ul className="panel list">
-        {COURSES.map((c) => <CourseRow key={c.id} course={c} deadlines={deadlines} now={now} />)}
+        {COURSES.map((c) => <CourseRow key={c.id} course={c} items={items} now={now} />)}
       </ul>
 
-      <p className="h-section spaced">Mehr</p>
+      <h2 className="h-section spaced">Mehr</h2>
       <ul className="panel list">
         <li>
           <Link to="/links" className="row row--link">
             <Icon name="link" size={20} />
-            <div className="row__main"><div className="row__title">Links & Admin</div><div className="row__meta"><span>Studiensekretariat, Curriculum, alle Kurslinks</span></div></div>
+            <span className="row__main"><span className="row__title">Links & Admin</span><span className="row__meta"><span>Curriculum, Administratives, alle Kurslinks</span></span></span>
             <Icon name="chevron-right" size={18} />
           </Link>
         </li>
         <li>
           <Link to="/settings" className="row row--link">
             <Icon name="settings" size={20} />
-            <div className="row__main"><div className="row__title">Einstellungen</div><div className="row__meta"><span>Darstellung, Wochen, Übungsgruppe, Daten</span></div></div>
+            <span className="row__main"><span className="row__title">Einstellungen</span><span className="row__meta"><span>Sync, Darstellung, Stundenplan, Backup</span></span></span>
             <Icon name="chevron-right" size={18} />
           </Link>
         </li>
       </ul>
+      <div className="sync-row"><SyncBadge /></div>
     </>
   );
 }

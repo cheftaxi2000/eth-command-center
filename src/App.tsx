@@ -1,10 +1,15 @@
 import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AddSheet } from './components/AddSheet';
-import { SideNav, TabBar } from './components/Nav';
+import { EditorSheet } from './components/EditorSheet';
+import { Fab, SideNav, TabBar } from './components/Nav';
 import { SearchOverlay } from './components/SearchOverlay';
-import { UIProvider, useUI } from './components/ui-context';
+import { ShortcutsSheet, useGlobalShortcuts } from './components/Shortcuts';
+import { Toasts } from './components/toast';
+import { UIProvider } from './components/ui-context';
+import { useMediaQuery } from './lib/hooks';
+import { getNow, isSimulatedTime } from './lib/now';
 import { usePersonal } from './lib/store';
+import { fmtDateShort, fmtTime } from './lib/time';
 import { CoursePage } from './pages/CoursePage';
 import { CoursesPage } from './pages/Courses';
 import { LinksPage } from './pages/Links';
@@ -14,28 +19,22 @@ import { TasksPage } from './pages/Tasks';
 import { TodayPage } from './pages/Today';
 import { WeekPage } from './pages/Week';
 
-function Shell({ children }: { children: ReactNode }) {
-  const ui = useUI();
-  const { pathname } = useLocation();
-  const theme = usePersonal().theme;
+const BG = { light: '#f6f5f1', dark: '#111214' };
 
+function Shell({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const theme = usePersonal().local.theme;
+  const systemDark = useMediaQuery('(prefers-color-scheme: dark)');
+  useGlobalShortcuts();
+
+  // Theme + matching browser/status bar colour
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'system') root.removeAttribute('data-theme');
     else root.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // Ctrl/⌘+K opens the search from anywhere
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        ui.searchOpen ? ui.closeSearch() : ui.openSearch();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [ui]);
+    const dark = theme === 'dark' || (theme === 'system' && systemDark);
+    document.querySelectorAll('meta[name="theme-color"]').forEach((m) => m.setAttribute('content', dark ? BG.dark : BG.light));
+  }, [theme, systemDark]);
 
   useEffect(() => {
     if (!window.location.hash.includes('h=')) window.scrollTo(0, 0);
@@ -45,11 +44,15 @@ function Shell({ children }: { children: ReactNode }) {
     <div className="app">
       <SideNav />
       <main className="main">
+        {isSimulatedTime && <p className="sim-banner">Simulierte Zeit: {fmtDateShort(getNow())}, {fmtTime(getNow())}</p>}
         <div className="page">{children}</div>
       </main>
       <TabBar />
+      <Fab />
       <SearchOverlay />
-      <AddSheet />
+      <EditorSheet />
+      <ShortcutsSheet />
+      <Toasts />
     </div>
   );
 }

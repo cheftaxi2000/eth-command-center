@@ -64,7 +64,23 @@ Listenzeilen statt Karten, Dark Mode (System/Hell/Dunkel), keine Hover-only-Funk
 - **NICE (offen):** Prüfungs-Countdown, Lernfortschritt, iCal-Export, Sync, Credits/Noten, automatischer
   (read-only) Notion-Sync, Konflikterkennung im Stundenplan.
 
+## v2 – Feedback umgesetzt (2026-09-19)
+- **Zugriff Laptop + iPad:** GitHub Pages (Deployment per GitHub Actions), installierbar auf iPad und Windows.
+- **Sync:** eigene Daten über eine Datei in einem *privaten* GitHub-Repo; Merge pro Eintrag (last-writer-wins,
+  Löschmarken), offline-fähig, öffentliche Repos werden abgelehnt. CSP erlaubt nur `api.github.com`.
+- **Startseite entschlackt:** Wochenleiste und Schnellzugriff entfernt (Links jetzt als Buttons auf der Kursseite,
+  alles weiterhin unter „Links & Admin“). Neu: laufende/nächste Veranstaltung mit Countdown.
+- **To-dos pro Fach** (+ „Allgemein“): Eingabezeile mit Fach-Vorschlag (laufende/gerade beendete Vorlesung),
+  Fristen inkl. „Nächste Übung/Vorlesung“, Abhaken/Löschen mit Rückgängig, Suche + Schnellerfassung.
+- **Schneller wechseln:** Kurs-Chips (iPad), Wischen zwischen Kursen und Wochen, Tastenkürzel, Plus-Knopf.
+- **Lesbarkeit:** größere Schrift auf Touch (17 px), Kontrast ≥ 4.5:1, Überschriften in Normalschrift statt Kapitälchen,
+  ruhigere Listen (Notion-Kategorie „Individual“ ausgeblendet), Räume als Tipp-Ziele zum ETH-Raumplan.
+- **Fehler behoben:** u. a. Wochenansicht am Wochenende, iPad-quer ohne Kursliste, Sheets unter der Tastatur,
+  „Strg K“-Hinweis auf dem iPad, Kontrast der Sekundärtexte, Automatik-Update konnte Eingaben verwerfen.
+
 ## Offene Punkte
 - Welche Wochen (gerade/ungerade KW) hat die 2-wöchentliche Analysis-Vorlesung? → in App wählbar.
 - Welche Mechanik-Übungsgruppe besuchst du? → in App wählbar.
-- Hosting fürs iPad (siehe README).
+- Veröffentlichen (einmal „Publish“ in GitHub Desktop + Pages-Quelle setzen, siehe README).
+- Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
+  automatischer, strikt lesender Abgleich per Notion-API (Integration nur mit „Read content“) in der GitHub Action.

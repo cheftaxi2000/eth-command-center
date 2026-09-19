@@ -2,6 +2,7 @@ import { Icon, CourseDot } from '../components/ui';
 import { linkKindLabel } from '../components/course';
 import { seed } from '../data/seed';
 import { COURSES } from '../lib/data';
+import { useTitle } from '../lib/hooks';
 
 const hostOf = (url: string) => {
   try { return new URL(url).hostname; } catch { return url; }
@@ -20,6 +21,7 @@ function LinkRow({ label, sub, url, lead }: { label: string; sub: string; url: s
 }
 
 export function LinksPage() {
+  useTitle('Links & Admin');
   const withLinks = COURSES.filter((c) => c.links.length > 0);
   return (
     <>

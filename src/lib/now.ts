@@ -17,6 +17,7 @@ const offset = (() => {
 })();
 
 export const getNow = () => new Date(Date.now() + offset);
+export const isSimulatedTime = offset !== 0;
 
 /** Re-renders every 30 s so "läuft gerade" and countdowns stay correct. */
 export function useNow(): Date {

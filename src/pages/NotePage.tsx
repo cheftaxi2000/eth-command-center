@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Chip, CourseDot, Icon } from '../components/ui';
 import { seed } from '../data/seed';
 import { courseById } from '../lib/data';
+import { useTitle } from '../lib/hooks';
 import { slug } from '../lib/search';
 
 function CodeBlock({ text }: { text: string }) {
@@ -33,6 +34,7 @@ export function NotePage() {
   const note = seed.notes.find((n) => n.id === id);
   const course = note ? courseById(note.courseId) : undefined;
   const target = sp.get('h');
+  useTitle(note?.title ?? 'Notiz');
 
   useEffect(() => {
     if (target) document.getElementById(`h-${target}`)?.scrollIntoView({ block: 'start' });

@@ -1,43 +1,71 @@
-import { NavLink } from 'react-router-dom';
-import { COURSES, useDeadlines } from '../lib/data';
+import { NavLink, useLocation } from 'react-router-dom';
+import { COURSES, dueWithin, useItems } from '../lib/data';
+import { MOD_KEY } from '../lib/hooks';
 import { useNow } from '../lib/now';
-import { daysBetween } from '../lib/time';
+import { useSyncStatus } from '../lib/sync';
 import { CourseDot, Icon, cx, type IconName } from './ui';
 import { useUI } from './ui-context';
 
-const MAIN: { to: string; label: string; icon: IconName; end?: boolean }[] = [
-  { to: '/', label: 'Heute', icon: 'today', end: true },
-  { to: '/week', label: 'Woche', icon: 'week' },
-  { to: '/tasks', label: 'Aufgaben', icon: 'tasks' },
-  { to: '/courses', label: 'Kurse', icon: 'courses' },
+const MAIN: { to: string; label: string; icon: IconName; end?: boolean; key: string }[] = [
+  { to: '/', label: 'Heute', icon: 'today', end: true, key: 'H' },
+  { to: '/week', label: 'Woche', icon: 'week', key: 'W' },
+  { to: '/tasks', label: 'Aufgaben', icon: 'tasks', key: 'A' },
 ];
 
-/** Open deadlines that are overdue or due within a week – shown as a quiet count. */
+/** Overdue + due within 7 days – shown as a quiet count on "Aufgaben" */
 function useUrgentCount(): number {
   const now = useNow();
-  return useDeadlines().filter((d) => !d.done && daysBetween(now, d.when) <= 7).length;
+  return dueWithin(useItems(), now, 7).length;
+}
+
+/** Course the user is looking at (for "Neues To-do" defaults) */
+export function useCurrentCourseId(): string | undefined {
+  const { pathname } = useLocation();
+  return pathname.match(/^\/courses\/([^/]+)/)?.[1];
 }
 
 const navClass = ({ isActive }: { isActive: boolean }) => cx('nav-item', isActive && 'is-active');
 
-/**
- * Desktop (≥1200px): full sidebar. iPad landscape (900–1199px): the same element collapses to an
- * icon rail via CSS. Below 900px (iPad portrait, phone): bottom tab bar (`TabBar`).
- */
+export function SyncBadge() {
+  const s = useSyncStatus();
+  const now = useNow();
+  const map = {
+    off: { icon: 'cloud-off', text: 'Sync einrichten', tone: 'muted' },
+    idle: { icon: 'cloud', text: s.lastSyncAt ? `Synchronisiert${+now - s.lastSyncAt < 90_000 ? '' : ` · ${new Date(s.lastSyncAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}`}` : 'Sync bereit', tone: 'ok' },
+    syncing: { icon: 'cloud', text: 'Synchronisiere …', tone: 'ok' },
+    offline: { icon: 'cloud-off', text: 'Offline – synct später', tone: 'muted' },
+    error: { icon: 'alert', text: 'Sync-Problem', tone: 'error' },
+  } as const;
+  const m = map[s.phase];
+  return (
+    <NavLink to="/settings#sync" className={cx('sync-badge', `sync-badge--${m.tone}`)} title={s.error}>
+      <Icon name={m.icon} size={18} />
+      <span>{m.text}</span>
+    </NavLink>
+  );
+}
+
+/** ≥ 1024 px (desktop, iPad landscape): sidebar with all courses. Below: tab bar + "+" button. */
 export function SideNav() {
   const ui = useUI();
   const urgent = useUrgentCount();
+  const courseId = useCurrentCourseId();
   return (
     <aside className="side" aria-label="Navigation">
       <div className="side__brand">
         <span className="brand-mark" aria-hidden="true" />
-        <span className="side__label brand-text">Studium</span>
+        <span>Studium</span>
       </div>
 
-      <button type="button" className="side__search" onClick={ui.openSearch}>
+      <button type="button" className="side__btn" onClick={ui.openSearch}>
         <Icon name="search" size={20} />
-        <span className="side__label">Suchen</span>
-        <kbd className="side__label">Strg K</kbd>
+        <span className="side__btn-label">Suchen</span>
+        <kbd className="kbd-hint">{MOD_KEY} K</kbd>
+      </button>
+      <button type="button" className="side__btn side__btn--add" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId })}>
+        <Icon name="plus" size={20} />
+        <span className="side__btn-label">Neues To-do</span>
+        <kbd className="kbd-hint">N</kbd>
       </button>
 
       <nav className="side__nav">
@@ -45,17 +73,18 @@ export function SideNav() {
           <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
             <Icon name={n.icon} />
             <span className="nav-item__label">{n.label}</span>
-            {n.to === '/tasks' && urgent > 0 && <span className="badge" aria-label={`${urgent} dringend`}>{urgent}</span>}
+            {n.to === '/tasks' && urgent > 0 && <span className="badge" aria-label={`${urgent} bald fällig`}>{urgent}</span>}
           </NavLink>
         ))}
       </nav>
 
       <div className="side__courses">
-        <p className="h-section">Meine Kurse</p>
-        {COURSES.map((c) => (
+        <NavLink to="/courses" end className="side__heading">Kurse</NavLink>
+        {COURSES.map((c, i) => (
           <NavLink key={c.id} to={`/courses/${c.id}`} className={navClass}>
             <CourseDot color={c.color} />
             <span className="nav-item__label">{c.shortName}</span>
+            <kbd className="kbd-hint kbd-hint--quiet">{i + 1}</kbd>
           </NavLink>
         ))}
       </div>
@@ -63,6 +92,7 @@ export function SideNav() {
       <div className="side__foot">
         <NavLink to="/links" className={navClass}><Icon name="link" /><span className="nav-item__label">Links & Admin</span></NavLink>
         <NavLink to="/settings" className={navClass}><Icon name="settings" /><span className="nav-item__label">Einstellungen</span></NavLink>
+        <SyncBadge />
       </div>
     </aside>
   );
@@ -71,9 +101,10 @@ export function SideNav() {
 export function TabBar() {
   const ui = useUI();
   const urgent = useUrgentCount();
+  const tabs = [...MAIN, { to: '/courses', label: 'Kurse', icon: 'courses' as const, end: false, key: 'K' }];
   return (
     <nav className="tabbar" aria-label="Hauptnavigation">
-      {MAIN.map((n) => (
+      {tabs.map((n) => (
         <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('tab', isActive && 'is-active')}>
           <span className="tab__icon">
             <Icon name={n.icon} />
@@ -87,5 +118,16 @@ export function TabBar() {
         <span className="tab__label">Suche</span>
       </button>
     </nav>
+  );
+}
+
+/** Floating "+" (iPad portrait / phone): new to-do from anywhere, for the course you are looking at */
+export function Fab() {
+  const ui = useUI();
+  const courseId = useCurrentCourseId();
+  return (
+    <button type="button" className="fab" aria-label="Neues To-do" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId })}>
+      <Icon name="plus" size={26} />
+    </button>
   );
 }

@@ -1,87 +1,110 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { flagText, SessionRow } from '../components/rows';
+import { SessionRow, flagText } from '../components/rows';
 import { Chip, Icon, cvar, cx } from '../components/ui';
-import { COURSES, courseById, useDeadlines } from '../lib/data';
-import { useMediaQuery } from '../lib/hooks';
+import { useUI } from '../components/ui-context';
+import { COURSES, targetOf, useItems, type Item } from '../lib/data';
+import { isTypingTarget, useMediaQuery, useSwipe, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { KIND_LABEL, occurrencesInWeek, type Occurrence } from '../lib/schedule';
 import { usePersonal } from '../lib/store';
-import {
-  DAY_SHORT, addDays, fmtDayMonth, fmtTime, isSameDay, isoWeek, minutesOf, startOfDay, startOfWeek,
-} from '../lib/time';
-import type { Deadline } from '../types';
+import { DAY_SHORT, addDays, daysBetween, fmtDayMonth, fmtTime, isSameDay, isoWeek, minutesOf, startOfDay, startOfWeek } from '../lib/time';
 
 const START = 8 * 60;
 const END = 18 * 60;
 const HOURS = Array.from({ length: (END - START) / 60 }, (_, i) => 8 + i);
 
+function weekLabel(rel: number) {
+  if (rel === 0) return 'Diese Woche';
+  if (rel === 1) return 'Nächste Woche';
+  if (rel === -1) return 'Letzte Woche';
+  return rel > 0 ? `In ${rel} Wochen` : `Vor ${-rel} Wochen`;
+}
+
 export function WeekPage() {
+  useTitle('Woche');
   const now = useNow();
-  const p = usePersonal();
-  const deadlines = useDeadlines().filter((d) => !d.done);
+  const ui = useUI();
+  const { synced } = usePersonal();
+  const items = useItems().filter((i) => !i.done && i.due);
   const narrow = useMediaQuery('(max-width: 639px)');
 
+  // On weekends "current" means the coming week
   const weekend = now.getDay() === 0 || now.getDay() === 6;
-  const [offset, setOffset] = useState(weekend ? 1 : 0);
-  const base = startOfWeek(now);
-  const weekStart = addDays(base, offset * 7);
+  const anchor = addDays(startOfWeek(now), weekend ? 7 : 0);
+  const [offset, setOffset] = useState(0);
+  const weekStart = addDays(anchor, offset * 7);
   const days = [0, 1, 2, 3, 4].map((i) => addDays(weekStart, i));
-  const week = occurrencesInWeek(weekStart, COURSES, p.prefs);
-  const flags = new Set(week.flat().map((o) => o.flag).filter(Boolean));
-  const unclear = [flags.has('biweekly') && '2-wöchentliche Vorlesung', flags.has('choice') && 'Übungsgruppe'].filter(Boolean).join(' / ');
+  const week = occurrencesInWeek(weekStart, COURSES, synced.prefs);
+  const rel = Math.round(daysBetween(startOfWeek(now), weekStart) / 7);
 
-  const label = offset === 0 ? 'Diese Woche' : offset === 1 ? 'Nächste Woche' : offset === -1 ? 'Letzte Woche' : '';
+  const flags = new Set(week.flat().map((o) => o.flag).filter(Boolean));
+  const unclear = [flags.has('biweekly') && '2-wöchentliche Vorlesung', flags.has('choice') && 'Übungsgruppe'].filter(Boolean).join(' und ');
+
+  const swipe = useSwipe((dir) => setOffset((o) => o + (dir === 'left' ? 1 : -1)));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (ui.searchOpen || ui.editor || ui.helpOpen || isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === 'ArrowLeft') setOffset((o) => o - 1);
+      else if (e.key === 'ArrowRight') setOffset((o) => o + 1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [ui.searchOpen, ui.editor, ui.helpOpen]);
 
   return (
-    <>
+    <div {...swipe}>
       <header className="page-head">
         <div>
-          <p className="eyebrow">{label || 'Woche'}</p>
+          <p className="eyebrow">{weekLabel(rel)}</p>
           <h1>KW {isoWeek(weekStart)} <span className="h1-sub">{fmtDayMonth(days[0])} – {fmtDayMonth(days[4])}</span></h1>
         </div>
         <div className="stepper">
           <button type="button" className="icon-btn" onClick={() => setOffset((o) => o - 1)} aria-label="Vorherige Woche"><Icon name="chevron-left" /></button>
-          <button type="button" className="btn" onClick={() => setOffset(0)} disabled={offset === 0}>Heute</button>
+          <button type="button" className="btn" onClick={() => setOffset(0)} disabled={offset === 0}>Aktuell</button>
           <button type="button" className="icon-btn" onClick={() => setOffset((o) => o + 1)} aria-label="Nächste Woche"><Icon name="chevron-right" /></button>
         </div>
       </header>
 
       {unclear && (
         <p className="notice">
-          Noch nicht eindeutig: {unclear}. <Link to="/settings">In den Einstellungen festlegen</Link>
+          Noch nicht eindeutig: {unclear}. <Link to="/settings">Festlegen</Link>
         </p>
       )}
 
-      {narrow ? (
-        <Agenda days={days} week={week} deadlines={deadlines} now={now} />
-      ) : (
-        <Timetable days={days} week={week} deadlines={deadlines} now={now} />
-      )}
-    </>
+      {narrow ? <Agenda days={days} week={week} items={items} now={now} /> : <Timetable days={days} week={week} items={items} now={now} />}
+    </div>
   );
 }
 
-function Agenda({ days, week, deadlines, now }: { days: Date[]; week: Occurrence[][]; deadlines: Deadline[]; now: Date }) {
+function DueLine({ item, compact }: { item: Item; compact?: boolean }) {
+  const t = targetOf(item.courseId);
+  return (
+    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo')}>
+      <Icon name={item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
+      <span>
+        {item.title}{!item.allDay && ` · ${fmtTime(item.due!)}`}
+        {!compact && <em>{t.shortName}</em>}
+      </span>
+    </span>
+  );
+}
+
+function Agenda({ days, week, items, now }: { days: Date[]; week: Occurrence[][]; items: Item[]; now: Date }) {
   return (
     <div className="agenda">
       {days.map((day, i) => {
-        const dl = deadlines.filter((d) => isSameDay(d.when, day));
+        const dl = items.filter((d) => isSameDay(d.due!, day));
         const isToday = isSameDay(day, now);
         return (
           <section key={i} className={cx('agenda__day', isToday && 'is-today')}>
-            <h2 className="h-section">{DAY_SHORT[day.getDay()]}, {fmtDayMonth(day)}{isToday && ' · Heute'}</h2>
+            <h2 className="agenda__head">{DAY_SHORT[day.getDay()]}, {fmtDayMonth(day)}{isToday && ' · Heute'}</h2>
             {week[i].length === 0 && dl.length === 0 ? (
               <p className="empty">Frei</p>
             ) : (
               <ul className="panel list">
                 {week[i].map((o) => <SessionRow key={o.key} occ={o} now={now} />)}
-                {dl.map((d) => (
-                  <li key={d.id} className="row row--deadline">
-                    <Icon name="flag" size={18} />
-                    <div className="row__main"><div className="row__title">{d.title}</div><div className="row__meta">{courseById(d.courseId)?.shortName} · fällig {fmtTime(d.when)}</div></div>
-                  </li>
-                ))}
+                {dl.map((d) => <li key={d.id} className="row row--due"><DueLine item={d} /></li>)}
               </ul>
             )}
           </section>
@@ -91,25 +114,21 @@ function Agenda({ days, week, deadlines, now }: { days: Date[]; week: Occurrence
   );
 }
 
-function Timetable({ days, week, deadlines, now }: { days: Date[]; week: Occurrence[][]; deadlines: Deadline[]; now: Date }) {
+function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[][]; items: Item[]; now: Date }) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
   return (
     <div className="tt">
       <div className="tt__head">
         <div />
         {days.map((day, i) => {
-          const dl = deadlines.filter((d) => isSameDay(d.when, day));
+          const dl = items.filter((d) => isSameDay(d.due!, day));
           const isToday = isSameDay(day, now);
           return (
             <div key={i} className={cx('tt__dayhead', isToday && 'is-today', +startOfDay(day) < +startOfDay(now) && 'is-past')}>
               <span className="tt__dow">{DAY_SHORT[day.getDay()]}</span>
-              <span className="tt__dom">{day.getDate()}</span>
-              {dl.map((d) => (
-                <span key={d.id} className="tt__due" title={`${d.title} · fällig ${fmtTime(d.when)}`}>
-                  <Icon name="flag" size={12} />
-                  <span>{d.title} · {fmtTime(d.when)}<em>{courseById(d.courseId)?.shortName}</em></span>
-                </span>
-              ))}
+              <span className="tt__dom">{day.getDate()}.</span>
+              {dl.slice(0, 3).map((d) => <DueLine key={d.id} item={d} />)}
+              {dl.length > 3 && <span className="due-line">+{dl.length - 3} weitere</span>}
             </div>
           );
         })}
@@ -117,7 +136,7 @@ function Timetable({ days, week, deadlines, now }: { days: Date[]; week: Occurre
 
       <div className="tt__body" style={{ height: END - START }}>
         <div className="tt__axis">
-          {HOURS.map((h) => <span key={h} style={{ top: (h * 60 - START) }}>{String(h).padStart(2, '0')}:00</span>)}
+          {HOURS.map((h) => <span key={h} style={{ top: h * 60 - START }}>{String(h).padStart(2, '0')}:00</span>)}
         </div>
         {days.map((day, i) => (
           <div key={i} className={cx('tt__col', isSameDay(day, now) && 'is-today')}>
@@ -127,12 +146,9 @@ function Timetable({ days, week, deadlines, now }: { days: Date[]; week: Occurre
               const height = minutesOf(o.session.end) - minutesOf(o.session.start);
               const flag = flagText(o, true);
               return (
-                <Link
-                  key={o.key}
-                  to={`/courses/${o.course.id}`}
+                <Link key={o.key} to={`/courses/${o.course.id}`}
                   className={cx('block', o.session.kind === 'exercise' && 'block--ex', o.flag && 'block--uncertain', +now >= +o.end && 'is-past')}
-                  style={{ ...cvar(o.course.color), top, height: height - 2 }}
-                >
+                  style={{ ...cvar(o.course.color), top, height: height - 2 }}>
                   <span className="block__name">{o.course.shortName}</span>
                   <span className="block__meta">{KIND_LABEL[o.session.kind]} · {o.session.room}</span>
                   {height >= 90 && <span className="block__meta">{o.session.start}–{o.session.end}</span>}

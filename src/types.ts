@@ -1,3 +1,5 @@
+/* Types of the read-only Notion snapshot (src/data/seed.ts). Personal data types live in lib/state.ts. */
+
 export type SessionKind = 'lecture' | 'exercise';
 
 export interface Session {
@@ -41,6 +43,7 @@ export interface Course {
 
 export type TaskStatus = 'not-started' | 'in-progress' | 'done';
 
+/** A task from the Notion "Tasks" database */
 export interface Task {
   id: string;
   courseId: string;
@@ -75,32 +78,4 @@ export interface Seed {
   tasks: Task[];
   notes: Note[];
   adminLinks: AdminLink[];
-}
-
-/** User-entered, lives only in this app (never in Notion) */
-export interface Exam {
-  id: string;
-  courseId: string;
-  title: string;
-  when: string; // "YYYY-MM-DDTHH:mm"
-  location?: string;
-}
-
-export interface Prefs {
-  /** ISO calendar-week parity in which 2-weekly lectures take place; null = not chosen yet */
-  biweeklyParity: 'odd' | 'even' | null;
-  /** choiceGroup -> chosen session id */
-  choices: Record<string, string>;
-}
-
-export interface Deadline {
-  id: string;
-  kind: 'task' | 'exam';
-  courseId: string;
-  title: string;
-  when: Date;
-  done: boolean;
-  inProgress: boolean;
-  local: boolean;
-  meta?: string;
 }
