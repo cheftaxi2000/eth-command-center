@@ -97,7 +97,8 @@ h1 { font-size: 2rem; line-height: 1.12; letter-spacing: -0.022em; font-weight: 
 /* ---------- shell ---------- */
 .app { display: grid; grid-template-columns: minmax(0, 1fr); min-height: 100dvh; }
 .main { min-width: 0; }
-.page { max-width: 1080px; margin: 0 auto; padding: calc(20px + var(--safe-t)) 16px calc(var(--tabbar-h) + 104px + var(--safe-b)); }
+/* container, not viewport: the layout reacts to the space next to the sidebar (iPad landscape!) */
+.page { container: page / inline-size; max-width: 1080px; margin: 0 auto; padding: calc(20px + var(--safe-t)) 16px calc(var(--tabbar-h) + 104px + var(--safe-b)); }
 .page > section, .page > .group, .course-page > section { margin-top: 32px; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 12px 16px; margin-bottom: 20px; }
 .stepper { display: flex; align-items: center; gap: 8px; }

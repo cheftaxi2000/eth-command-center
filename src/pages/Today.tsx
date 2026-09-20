@@ -9,7 +9,7 @@ import { useNow } from '../lib/now';
 import { roomUrl } from '../lib/rooms';
 import { KIND_LABEL, focusOfDay, nextOccurrence, occurrencesOn } from '../lib/schedule';
 import { usePersonal } from '../lib/store';
-import { fmtDayLong, fmtRelDay, fmtTime, isoWeek } from '../lib/time';
+import { dueInfo, fmtDayLong, fmtRelDay, fmtTime, isoWeek } from '../lib/time';
 
 export function TodayPage() {
   useTitle('Heute');
@@ -22,6 +22,8 @@ export function TodayPage() {
   const next = focus ? null : nextOccurrence(now, COURSES, synced.prefs);
   const due = dueWithin(items, now, 7);
   const later = due.length === 0 ? items.find((i) => !i.done && i.due && +i.due > +now) : undefined;
+  // Exams are usually months away – keep them in view without cluttering the list
+  const nextExam = items.find((i) => i.kind === 'exam' && !i.done && i.due && !due.some((d) => d.id === i.id));
   const todos = backlog(items, now, 7);
 
   return (
@@ -67,6 +69,12 @@ export function TodayPage() {
               Nichts fällig in den nächsten 7 Tagen.
               {later?.due && <> Als Nächstes: <strong>{later.title}</strong> ({fmtRelDay(later.due, now)}).</>}
             </Empty>
+          )}
+          {nextExam?.due && (
+            <Link className="nextexam" to="/tasks">
+              <Icon name="flag" size={16} />
+              <span>Nächste Prüfung: <strong>{nextExam.title}</strong> · {dueInfo(nextExam.due, now).label}</span>
+            </Link>
           )}
         </section>
 

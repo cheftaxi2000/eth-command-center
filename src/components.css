@@ -30,7 +30,7 @@
 
 /* item (to-do / Notion task / exam) */
 .item { padding-top: 0; padding-bottom: 0; }
-.item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 58px; padding: 9px 12px; margin: 0 -12px; border-radius: 10px; }
+.item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 52px; padding: 8px 12px; margin: 0 -12px; border-radius: 10px; }
 .item__text { overflow-wrap: anywhere; }
 .item.is-done .item__text { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .item .row__due { padding-left: 4px; }
@@ -110,11 +110,11 @@
 .composer__input { flex: 1; min-width: 0; min-height: 48px; border: 0; outline: 0; background: transparent; font-size: 1rem; }
 .composer__input::placeholder { color: var(--ink-3); }
 .composer__courses { padding: 2px 0 8px 0; }
-@media (min-width: 640px) { .composer__courses { flex-wrap: wrap; overflow: visible; } }
+@container page (min-width: 700px) { .composer__courses { flex-wrap: wrap; overflow: visible; } }
 .todo-groups { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
 .todo-group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
-.todo-group__head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 46px; border-bottom: 1px solid var(--line); font-size: 0.9375rem; font-weight: 650; }
-.todo-group__name { display: inline-flex; align-items: center; gap: 9px; min-height: 44px; }
+.todo-group__head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 40px; border-bottom: 1px solid var(--line); font-size: 0.875rem; font-weight: 650; color: var(--ink-2); }
+.todo-group__name { display: inline-flex; align-items: center; gap: 9px; min-height: 40px; }
 .todo-group__name .icon { color: var(--ink-3); }
 
 /* ---------- home ---------- */
@@ -123,10 +123,15 @@
 .dash__today { grid-area: today; }
 .dash__due { grid-area: due; }
 .dash__todos { grid-area: todos; }
-@media (min-width: 900px) {
-  .dash { grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr); grid-template-areas: 'today due' 'todos due'; align-items: start; column-gap: 36px; }
-  .dash__due { position: sticky; top: 24px; }
+/* Two columns only when there is really room for them; to-dos then use the full width */
+@container page (min-width: 800px) {
+  .dash { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); grid-template-areas: 'today due' 'todos todos'; align-items: start; column-gap: 32px; }
 }
+@container page (min-width: 860px) {
+  .todo-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+}
+.nextexam { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; padding: 0 4px; font-size: 0.9375rem; color: var(--ink-2); }
+.nextexam .icon { color: var(--ink-3); }
 .nextup { margin-top: 0; }
 .panel + .nextup { margin-top: 12px; }
 .nextup__lead { font-size: 1.0625rem; font-weight: 600; }
