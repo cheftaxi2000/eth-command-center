@@ -78,9 +78,33 @@ Listenzeilen statt Karten, Dark Mode (System/Hell/Dunkel), keine Hover-only-Funk
 - **Fehler behoben:** u. a. Wochenansicht am Wochenende, iPad-quer ohne Kursliste, Sheets unter der Tastatur,
   „Strg K“-Hinweis auf dem iPad, Kontrast der Sekundärtexte, Automatik-Update konnte Eingaben verwerfen.
 
+## v3 – Feedback umgesetzt (2026-09-20)
+- **Sync ohne Token:** GitHub-PAT-Sync komplett ersetzt durch einen automatischen „Sync-Code“ über
+  [kvdb.io](https://kvdb.io) (anonymer, kostenloser Key-Value-Speicher, kein Login). Beim ersten Start wird
+  sofort ein Code erzeugt und synchronisiert im Hintergrund; ein zweites Gerät koppelt sich, indem derselbe
+  Code einmal eingegeben wird – bestehende Daten beider Geräte werden zusammengeführt. Bestätigt per
+  End-to-End-Test mit zwei isolierten Browser-Profilen (echtes Chrome, Produktions-Build): Laptop legt To-do an,
+  iPad koppelt sich, sieht sofort beide Einträge, Laptop sieht nach dem nächsten Sync auch das iPad-To-do.
+  CSP erlaubt jetzt `kvdb.io` statt `api.github.com`.
+  *Bekannte Grenze:* kvdb verlangt bei Bucket-Erstellung eine E-Mail-Adresse und sperrt Schreibzugriffe für
+  Adressen, die es als Wegwerf-Adressen einstuft; die RFC-2606-Platzhalteradresse „test@example.com“ blieb in
+  ausführlichen Tests durchgehend nutzbar – dokumentiertes, aber nicht vertraglich zugesichertes Verhalten
+  eines kostenlosen Drittanbieters.
+- **Wochenplan:** Kursfarben klarer unterscheidbar (Informatik I: Türkis statt Amber, das zu nah an
+  Eng.-Design-Orange lag), kräftigere Füllfarben. Offene Serie/Abgabe steht jetzt direkt am zugehörigen
+  Übungsblock (nicht nur im Tages-Kopf), auch wenn die Frist an einem anderen Wochentag liegt.
+- **Analysis-Vorlesung „diese Woche nicht, erst nächste“:** Standardwert der 2-wöchentlichen Parität von
+  „offen“ auf „gerade Kalenderwochen“ gesetzt (bestätigter Fakt, kein Rätselraten mehr) – weiterhin in den
+  Einstellungen änderbar.
+- **Erledigt-Haken:** grün gefüllter Kreis mit weißem Haken statt Blau; ein gerade abgehakter Eintrag bleibt
+  ~0,9 s sichtbar (mit Aufleucht-Effekt), bevor er ins eingeklappte „Erledigt“-Bündel wandert – vorher
+  verschwand er ohne sichtbares Feedback.
+- **Neue Rubrik „Notizen":** eigene, freie Notizen (Titel + Text), optional einem Fach zugeordnet, über den
+  Sync-Code mitsynchronisiert, durchsuchbar, auch auf der jeweiligen Kursseite sichtbar.
+
 ## Offene Punkte
-- Welche Wochen (gerade/ungerade KW) hat die 2-wöchentliche Analysis-Vorlesung? → in App wählbar.
-- Welche Mechanik-Übungsgruppe besuchst du? → in App wählbar.
-- Veröffentlichen (einmal „Publish“ in GitHub Desktop + Pages-Quelle setzen, siehe README).
+- Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
   automatischer, strikt lesender Abgleich per Notion-API (Integration nur mit „Read content“) in der GitHub Action.
+- kvdb.io ist ein kleiner kostenloser Drittanbieter ohne SLA; sollte er dauerhaft ausfallen, bräuchte die App
+  einen alternativen Sync-Transport (die Merge-Logik selbst ist transport-unabhängig, siehe `lib/state.ts`).

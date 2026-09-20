@@ -30,7 +30,7 @@ export function SyncBadge() {
   const s = useSyncStatus();
   const now = useNow();
   const map = {
-    off: { icon: 'cloud-off', text: 'Sync einrichten', tone: 'muted' },
+    starting: { icon: 'cloud', text: 'Sync startet …', tone: 'muted' },
     idle: { icon: 'cloud', text: s.lastSyncAt ? `Synchronisiert${+now - s.lastSyncAt < 90_000 ? '' : ` · ${new Date(s.lastSyncAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}`}` : 'Sync bereit', tone: 'ok' },
     syncing: { icon: 'cloud', text: 'Synchronisiere …', tone: 'ok' },
     offline: { icon: 'cloud-off', text: 'Offline – synct später', tone: 'muted' },
@@ -76,6 +76,11 @@ export function SideNav() {
             {n.to === '/tasks' && urgent > 0 && <span className="badge" aria-label={`${urgent} bald fällig`}>{urgent}</span>}
           </NavLink>
         ))}
+        {/* Not in MAIN/TabBar (no room for a 6th tab) – reachable on iPad/phone via the "Kurse" page instead. */}
+        <NavLink to="/notes" className={navClass}>
+          <Icon name="note" />
+          <span className="nav-item__label">Notizen</span>
+        </NavLink>
       </nav>
 
       <div className="side__courses">

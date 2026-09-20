@@ -9,7 +9,7 @@ import { useUI } from './ui-context';
 
 const TYPE_ICON: Record<SearchType, IconName> = {
   course: 'courses', todo: 'tasks', deadline: 'flag', exam: 'flag', session: 'week', note: 'note',
-  topic: 'note', instructor: 'person', link: 'external', action: 'plus',
+  memo: 'note', topic: 'note', instructor: 'person', link: 'external', action: 'plus',
 };
 
 export function SearchOverlay() {
@@ -21,8 +21,8 @@ export function SearchOverlay() {
   const listRef = useRef<HTMLUListElement>(null);
 
   const index = useMemo(
-    () => createSearch({ ...seed, todos: Object.values(synced.todos), exams: Object.values(synced.exams) }),
-    [synced.todos, synced.exams],
+    () => createSearch({ ...seed, todos: Object.values(synced.todos), exams: Object.values(synced.exams), memos: Object.values(synced.memos) }),
+    [synced.todos, synced.exams, synced.memos],
   );
   const query = q.trim();
   const groups = useMemo(() => groupHits(query ? index.search(query) : index.browse(), query ? 5 : 20), [query, index]);
@@ -58,6 +58,7 @@ export function SearchOverlay() {
     else if (t.kind === 'route') nav(t.to);
     else if (t.kind === 'external') window.open(t.url, '_blank', 'noopener,noreferrer');
     else if (t.kind === 'todo' || t.kind === 'exam') ui.openEditor({ mode: 'edit', kind: t.kind, id: t.id });
+    else if (t.kind === 'memo') ui.openMemoEditor({ mode: 'edit', id: t.id });
     else ui.openEditor({ mode: 'new', kind: t.action === 'add-exam' ? 'exam' : 'todo' });
   };
 

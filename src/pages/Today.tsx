@@ -3,28 +3,31 @@ import { CourseSwitcher } from '../components/course';
 import { ItemRow, SessionRow, TodoComposer, TodoGroups } from '../components/rows';
 import { Empty, Icon, RoomLink, SectionHead } from '../components/ui';
 import { seed } from '../data/seed';
-import { COURSES, backlog, dueWithin, useItems } from '../lib/data';
-import { useTitle } from '../lib/hooks';
+import { COURSES, dueWithin, useItems } from '../lib/data';
+import { useLingerDone, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { roomUrl } from '../lib/rooms';
 import { KIND_LABEL, focusOfDay, nextOccurrence, occurrencesOn } from '../lib/schedule';
 import { usePersonal } from '../lib/store';
-import { dueInfo, fmtDayLong, fmtRelDay, fmtTime, isoWeek } from '../lib/time';
+import { daysBetween, dueInfo, fmtDayLong, fmtRelDay, fmtTime, isoWeek } from '../lib/time';
 
 export function TodayPage() {
   useTitle('Heute');
   const now = useNow();
   const { synced } = usePersonal();
   const items = useItems();
+  // Keeps a just-checked item visible for a beat (green check) instead of an instant teleport
+  const { items: openish, lingering } = useLingerDone(items);
 
   const today = occurrencesOn(now, COURSES, synced.prefs);
   const focus = focusOfDay(now, today);
   const next = focus ? null : nextOccurrence(now, COURSES, synced.prefs);
-  const due = dueWithin(items, now, 7);
+  // Mirrors dueWithin/backlog but without their own !i.done filter – openish already covers that
+  const due = openish.filter((i) => i.due && daysBetween(now, i.due) <= 7);
   const later = due.length === 0 ? items.find((i) => !i.done && i.due && +i.due > +now) : undefined;
   // Exams are usually months away – keep them in view without cluttering the list
   const nextExam = items.find((i) => i.kind === 'exam' && !i.done && i.due && !due.some((d) => d.id === i.id));
-  const todos = backlog(items, now, 7);
+  const todos = openish.filter((i) => i.kind === 'todo' && (!i.due || daysBetween(now, i.due) > 7));
 
   return (
     <>
@@ -63,7 +66,7 @@ export function TodayPage() {
         <section className="dash__due" aria-labelledby="h-due">
           <SectionHead id="h-due" title="Fällig" action={<Link className="more" to="/tasks">Alle<Icon name="chevron-right" size={16} /></Link>} />
           {due.length > 0 ? (
-            <ul className="panel list">{due.map((i) => <ItemRow key={i.id} item={i} now={now} />)}</ul>
+            <ul className="panel list">{due.map((i) => <ItemRow key={i.id} item={i} now={now} linger={lingering.has(i.id)} />)}</ul>
           ) : (
             <Empty>
               Nichts fällig in den nächsten 7 Tagen.
@@ -82,7 +85,7 @@ export function TodayPage() {
           <SectionHead id="h-todos" title="To-dos" action={todos.length > 0 ? <span className="count">{todos.length} offen</span> : undefined} />
           <div className="panel"><TodoComposer /></div>
           {todos.length > 0 ? (
-            <TodoGroups items={todos} now={now} />
+            <TodoGroups items={todos} now={now} lingering={lingering} />
           ) : (
             <Empty>Noch keine offenen To-dos. Schreib oben rein, was du nicht vergessen willst – z. B. „Skript Kapitel 2 nachlesen“.</Empty>
           )}

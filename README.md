@@ -4,20 +4,24 @@ Persönliche Studienübersicht für den Laptop-Browser und das iPad (installierb
 Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „Wo finde ich das?“.
 
 - **Heute** – laufende/nächste Veranstaltung mit Countdown und Raum (Tipp → ETH-Raumplan), Fälliges der nächsten 7 Tage, To-dos pro Fach
-- **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum)
-- **Woche** – Stundenplan mit Jetzt-Linie, Abgaben und datierten To-dos; wischen oder ← → für andere Wochen
-- **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notizen
-- **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, Termine & Räume, Abgaben, Notizen, Dozenten, Links – und „… als To-do speichern“
+- **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken.
+- **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – z. B. Passwörter, Ideen, Dinge zum Merken.
+- **Woche** – Stundenplan mit Jetzt-Linie; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
+- **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
+- **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
 - **Schnell wechseln** – Kurs-Chips oben (iPad), Wischen zwischen Kursen, Tasten `1`–`6`, `N` für neues To-do, `?` für alle Kürzel
+- **Sync** – läuft automatisch im Hintergrund, ganz ohne Login oder Token (siehe unten)
 
 ## Notion bleibt unverändert (read-only)
 
 - Die Notion-Daten liegen als lesend gezogener Snapshot in [`src/data/seed.ts`](src/data/seed.ts) (Stand 2026-09-19).
 - Die App schreibt **nie** in Notion. Eine Content-Security-Policy erlaubt technisch nur Verbindungen
-  zur App selbst und – für den optionalen Sync – zu `api.github.com`. Anfragen an Notion werden vom Browser blockiert.
-- Eigene Daten (To-dos, Prüfungen, Häkchen, Stundenplan-Wahl) liegen im Browser und optional in deinem privaten GitHub-Repo.
+  zur App selbst und – für den Sync – zu `kvdb.io`. Anfragen an Notion werden vom Browser blockiert.
+- Eigene Daten (To-dos, Notizen, Prüfungen, Häkchen, Stundenplan-Wahl) liegen im Browser und werden automatisch
+  über einen Sync-Code abgeglichen (siehe „Sync zwischen Laptop und iPad“).
 - Nicht in Notion und deshalb **nicht erfunden**: Prüfungstermine, Credits, Noten, Vorlesungsthemen,
-  Wochen der 2-wöchentlichen Analysis-Vorlesung, deine Mechanik-Übungsgruppe (in der App einstellbar).
+  deine Mechanik-Übungsgruppe (in der App einstellbar). Die Wochen der 2-wöchentlichen Analysis-Vorlesung
+  sind als bestätigter Fakt hinterlegt (gerade Kalenderwochen) und in den Einstellungen änderbar.
 
 ## Veröffentlichen (einmalig)
 
@@ -38,15 +42,16 @@ Danach wird jede Änderung auf `main` automatisch gebaut, getestet und veröffen
 
 ## Sync zwischen Laptop und iPad
 
-In der App: **Einstellungen → Sync**. Einmal pro Gerät (auf dem iPad in der installierten App, nicht in Safari):
+Läuft automatisch, ganz ohne Login oder Token: Beim allerersten Öffnen erzeugt die App selbst einen
+zufälligen **Sync-Code** (über [kvdb.io](https://kvdb.io), einen kostenlosen, anonymen Key-Value-Speicher)
+und synchronisiert sofort im Hintergrund.
 
-1. Privates Repo `studium-sync` anlegen.
-2. [Fine-grained Token](https://github.com/settings/personal-access-tokens/new) erstellen:
-   *Only select repositories* → `studium-sync`, Permission **Contents: Read and write**.
-3. Token in der App einfügen → Verbinden.
+Ein zweites Gerät koppeln: **Einstellungen → Sync** öffnen, den angezeigten Code kopieren, auf dem zweiten
+Gerät (auf dem iPad in der installierten App, nicht in Safari) unter „Code eines anderen Geräts eingeben“
+einfügen → Koppeln. Bereits vorhandene Daten auf beiden Geräten werden zusammengeführt, nichts geht verloren.
 
-Die App gleicht dann die Datei `studium.json` in diesem Repo ab (jede Änderung pro Eintrag, Löschungen inklusive,
-offline Geändertes wird nachgeholt). Öffentliche Repos lehnt die App ab. Der Token bleibt nur auf dem jeweiligen Gerät.
+Wer den Code kennt, kann diese Daten lesen und ändern – nicht öffentlich teilen. Offline erfasste Änderungen
+werden automatisch nachgeholt, sobald wieder eine Verbindung besteht.
 
 ## Entwickeln
 
@@ -66,7 +71,7 @@ src/
   data/seed.ts        Notion-Snapshot (read-only Quelle)
   lib/state.ts        eigenes Datenmodell, Merge (last-writer-wins + Löschmarken), v1-Migration
   lib/store.ts        lokaler Zustand + Aktionen
-  lib/sync.ts         optionaler GitHub-Sync (eine Datei in privatem Repo)
+  lib/sync.ts         automatischer Sync über kvdb.io (Sync-Code statt Token)
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag
   lib/data.ts         Fristen & To-dos als eine Liste
   lib/search.ts       Suche, Fach-Erkennung für Schnellerfassung

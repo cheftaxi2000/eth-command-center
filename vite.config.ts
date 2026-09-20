@@ -4,7 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 /**
  * Content-Security-Policy for the production build. `connect-src` only allows the app itself and
- * api.github.com (optional sync) – the app technically cannot talk to Notion or anywhere else.
+ * kvdb.io (the token-free device sync) – the app technically cannot talk to Notion or anywhere else.
  */
 const CSP = [
   "default-src 'self'",
@@ -12,7 +12,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self' https://api.github.com",
+  "connect-src 'self' https://kvdb.io",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",

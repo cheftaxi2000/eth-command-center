@@ -116,6 +116,9 @@ function Agenda({ days, week, items, now }: { days: Date[]; week: Occurrence[][]
 
 function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[][]; items: Item[]; now: Date }) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Which open items for a course fall due somewhere in the displayed week – shown right on its Übung block,
+  // since the deadline (e.g. "Serie 1") is usually a different weekday than the exercise session itself.
+  const dueThisWeek = (courseId: string) => items.filter((i) => i.courseId === courseId && days.some((day) => isSameDay(i.due!, day)));
   return (
     <div className="tt">
       <div className="tt__head">
@@ -145,6 +148,7 @@ function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[
               const top = minutesOf(o.session.start) - START;
               const height = minutesOf(o.session.end) - minutesOf(o.session.start);
               const flag = flagText(o, true);
+              const due = o.session.kind === 'exercise' ? dueThisWeek(o.course.id) : [];
               return (
                 <Link key={o.key} to={`/courses/${o.course.id}`}
                   className={cx('block', o.session.kind === 'exercise' && 'block--ex', o.flag && 'block--uncertain', +now >= +o.end && 'is-past')}
@@ -153,6 +157,9 @@ function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[
                   <span className="block__meta">{KIND_LABEL[o.session.kind]} · {o.session.room}</span>
                   {height >= 90 && <span className="block__meta">{o.session.start}–{o.session.end}</span>}
                   {flag && height >= 60 && <Chip tone="warn">{flag}</Chip>}
+                  {height >= 60 && due.slice(0, 2).map((d) => (
+                    <Chip key={d.id} tone="accent">{d.title} · {DAY_SHORT[d.due!.getDay()]} {!d.allDay && fmtTime(d.due!)}</Chip>
+                  ))}
                 </Link>
               );
             })}

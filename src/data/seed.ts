@@ -26,7 +26,7 @@ export const seed: Seed = {
       code: '252-0832-00',
       semester: 'Herbstsemester 2026',
       instructor: 'F. Friedrich Wicker, u. a.',
-      color: '#e0a800',
+      color: '#0d9488',
       icon: '💻',
       aliases: ['Informatik 1', 'Info 1', 'Info1', 'Informatik', 'C++', 'CodeExpert'],
       sessions: [

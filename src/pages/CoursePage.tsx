@@ -7,13 +7,14 @@ import { toast } from '../components/toast';
 import { Accordion, Chip, Empty, Icon, RoomLink, SectionHead, cvar, cx } from '../components/ui';
 import { useUI } from '../components/ui-context';
 import { courseById, notesOf, useItems } from '../lib/data';
-import { useSwipe, useTitle } from '../lib/hooks';
+import { useLingerDone, useSwipe, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { roomUrl } from '../lib/rooms';
 import { KIND_LABEL, nextOccurrence } from '../lib/schedule';
 import { actions, usePersonal } from '../lib/store';
 import { DAY_LONG, DAY_SHORT, dueInfo, fmtRelDay, fmtTime } from '../lib/time';
 import type { Session } from '../types';
+import { MemoRow } from './Notes';
 
 const hostOf = (url: string) => {
   try {
@@ -51,12 +52,16 @@ export function CoursePage() {
   }
 
   const mine = items.filter((i) => i.courseId === course.id);
-  const openTodos = mine.filter((i) => i.kind === 'todo' && !i.done);
-  const doneTodos = mine.filter((i) => i.kind === 'todo' && i.done);
+  const todos = mine.filter((i) => i.kind === 'todo');
+  const { items: openTodos, lingering } = useLingerDone(todos);
+  const doneTodos = todos.filter((i) => i.done && !lingering.has(i.id));
   const graded = mine.filter((i) => i.kind !== 'todo');
   const next = nextOccurrence(now, [course], synced.prefs);
   const nextDue = mine.find((i) => !i.done && i.due && +i.due >= +now);
   const notes = notesOf(course.id);
+  const memos = Object.values(synced.memos)
+    .filter((m) => m.courseId === course.id)
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   const groups = [...new Set(course.sessions.map((s) => s.choiceGroup).filter(Boolean))] as string[];
   const altRooms = course.sessions.filter((s) => s.altRooms?.length);
 
@@ -100,7 +105,7 @@ export function CoursePage() {
         <SectionHead id="h-todos" title="To-dos" action={openTodos.length > 0 ? <span className="count">{openTodos.length} offen</span> : undefined} />
         <div className="panel">
           <TodoComposer fixedCourseId={course.id} />
-          {openTodos.length > 0 && <ul className="list list--top">{openTodos.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse />)}</ul>}
+          {openTodos.length > 0 && <ul className="list list--top">{openTodos.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering.has(i.id)} />)}</ul>}
         </div>
         {openTodos.length === 0 && <p className="hint hint--block">Keine offenen To-dos – notier hier, was für {course.shortName} noch zu tun ist.</p>}
         {doneTodos.length > 0 && (
@@ -180,6 +185,16 @@ export function CoursePage() {
           </ul>
         ) : (
           <Empty>Für diesen Kurs sind in Notion noch keine Links oder Notizen hinterlegt.</Empty>
+        )}
+      </section>
+
+      <section aria-labelledby="h-memos">
+        <SectionHead id="h-memos" title="Meine Notizen"
+          action={<button type="button" className="text-btn" onClick={() => ui.openMemoEditor({ mode: 'new', courseId: course.id })}>+ Notiz</button>} />
+        {memos.length > 0 ? (
+          <ul className="panel list">{memos.map((m) => <MemoRow key={m.id} memo={m} hideCourse />)}</ul>
+        ) : (
+          <Empty>Noch keine eigenen Notizen für {course.shortName}.</Empty>
         )}
       </section>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react';
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 export function useMediaQuery(query: string): boolean {
   return useSyncExternalStore(
@@ -27,6 +27,61 @@ export const MOD_KEY = isApple ? '⌘' : 'Strg';
 export function isTypingTarget(el: EventTarget | null): boolean {
   if (!(el instanceof HTMLElement)) return false;
   return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+}
+
+/**
+ * Keeps a just-completed item visible (checked, struck through) for a beat instead of it
+ * instantly vanishing into a collapsed "Erledigt" section – so the green checkmark is actually seen.
+ * Returns the open items plus any that finished within the last `ms`; also returns their ids so
+ * callers can add a highlight class.
+ */
+export function useLingerDone<T extends { id: string; done: boolean }>(all: T[], ms = 900): { items: T[]; lingering: Set<string> } {
+  const openNow = useMemo(() => all.filter((i) => !i.done), [all]);
+  const openIds = useMemo(() => new Set(openNow.map((i) => i.id)), [openNow]);
+  const key = useMemo(() => all.map((i) => `${i.id}:${i.done}`).join(','), [all]);
+
+  const prevOpenIds = useRef<Set<string>>(openIds);
+  const timers = useRef(new Map<string, number>());
+  const [lingering, setLingering] = useState<Map<string, T>>(new Map());
+
+  useEffect(() => {
+    const justDone = [...prevOpenIds.current].filter((id) => !openIds.has(id));
+    if (justDone.length > 0) {
+      setLingering((prev) => {
+        const next = new Map(prev);
+        for (const id of justDone) {
+          const item = all.find((i) => i.id === id);
+          if (item) next.set(id, item);
+        }
+        return next;
+      });
+      for (const id of justDone) {
+        window.clearTimeout(timers.current.get(id));
+        timers.current.set(
+          id,
+          window.setTimeout(() => {
+            setLingering((prev) => {
+              if (!prev.has(id)) return prev;
+              const next = new Map(prev);
+              next.delete(id);
+              return next;
+            });
+            timers.current.delete(id);
+          }, ms),
+        );
+      }
+    }
+    prevOpenIds.current = openIds;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  useEffect(() => {
+    const t = timers.current;
+    return () => t.forEach((id) => window.clearTimeout(id));
+  }, []);
+
+  const overflow = [...lingering.values()].filter((i) => !openIds.has(i.id));
+  return { items: [...openNow, ...overflow], lingering: new Set(overflow.map((i) => i.id)) };
 }
 
 /**

@@ -1,12 +1,12 @@
 import { useSyncExternalStore } from 'react';
 import {
   canonical, defaultLocal, emptySynced, mergeSynced, migrateV1, normalizeSynced, uid,
-  type Exam, type LocalState, type SyncedState, type Todo,
+  type Exam, type LocalState, type Memo, type SyncedState, type Todo,
 } from './state';
 
 /**
- * The app's OWN data (to-dos, exams, check-offs, preferences) in localStorage on this device.
- * Nothing here is ever written to Notion; the optional sync (lib/sync.ts) talks to GitHub only.
+ * The app's OWN data (to-dos, exams, notes, check-offs, preferences) in localStorage on this device.
+ * Nothing here is ever written to Notion; the sync (lib/sync.ts) only talks to kvdb.io.
  */
 export interface Personal {
   synced: SyncedState;
@@ -83,7 +83,7 @@ const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state,
 const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
 const now = () => Date.now();
 
-type RecordKind = 'todos' | 'exams';
+type RecordKind = 'todos' | 'exams' | 'memos';
 
 function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
   updateSynced((s) => {
@@ -182,9 +182,32 @@ export const actions = {
   importBackup(raw: unknown) {
     updateSynced((s) => mergeSynced(s, normalizeSynced(raw)));
   },
-  /** Deletes all own to-dos and exams – on every synced device */
+  addMemo(input: { courseId: string; title: string; body: string }): string {
+    const id = uid('memo');
+    const t = now();
+    put('memos', { id, courseId: input.courseId, title: input.title.trim(), body: input.body.trim(), createdAt: t, updatedAt: t });
+    updateLocal({ lastCourse: input.courseId });
+    return id;
+  },
+  updateMemo(id: string, patch: Partial<Pick<Memo, 'title' | 'body' | 'courseId'>>) {
+    const cur = state.synced.memos[id];
+    if (!cur) return;
+    put('memos', { ...cur, ...patch, updatedAt: now() });
+  },
+  /** Returns the removed memo so the caller can offer "Rückgängig" */
+  deleteMemo(id: string): Memo | undefined {
+    const cur = state.synced.memos[id];
+    remove('memos', [id]);
+    return cur;
+  },
+  restoreMemo(memo: Memo) {
+    put('memos', { ...memo, updatedAt: now() });
+  },
+
+  /** Deletes all own to-dos, exams and notes – on every synced device */
   deleteAllOwn() {
     remove('todos', Object.keys(state.synced.todos));
     remove('exams', Object.keys(state.synced.exams));
+    remove('memos', Object.keys(state.synced.memos));
   },
 };

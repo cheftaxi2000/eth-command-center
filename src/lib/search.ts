@@ -1,16 +1,17 @@
 import MiniSearch from 'minisearch';
 import type { AdminLink, Course, Note, Task } from '../types';
 import { KIND_LABEL } from './schedule';
-import { GENERAL_ID, type Exam, type Todo } from './state';
+import { GENERAL_ID, type Exam, type Memo, type Todo } from './state';
 import { DAY_LONG, DAY_SHORT, dueMoment, fmtDateShort, fmtTime, isAllDay, parseLocal } from './time';
 
-export type SearchType = 'course' | 'todo' | 'deadline' | 'exam' | 'session' | 'note' | 'topic' | 'instructor' | 'link' | 'action';
+export type SearchType = 'course' | 'todo' | 'deadline' | 'exam' | 'session' | 'note' | 'memo' | 'topic' | 'instructor' | 'link' | 'action';
 
 export type Target =
   | { kind: 'route'; to: string }
   | { kind: 'external'; url: string }
   | { kind: 'todo'; id: string }
   | { kind: 'exam'; id: string }
+  | { kind: 'memo'; id: string }
   | { kind: 'action'; action: 'add-todo' | 'add-exam' };
 
 export interface SearchDoc {
@@ -31,6 +32,7 @@ export interface SearchInput {
   adminLinks: AdminLink[];
   todos: Todo[];
   exams: Exam[];
+  memos: Memo[];
 }
 
 export const TYPE_LABEL: Record<SearchType, string> = {
@@ -40,14 +42,15 @@ export const TYPE_LABEL: Record<SearchType, string> = {
   exam: 'Prüfungen',
   session: 'Termine',
   note: 'Notizen',
+  memo: 'Meine Notizen',
   topic: 'Themen',
   instructor: 'Dozenten',
   link: 'Links',
   action: 'Aktionen',
 };
 
-const TYPE_ORDER: SearchType[] = ['course', 'todo', 'deadline', 'exam', 'session', 'note', 'topic', 'instructor', 'link', 'action'];
-const TYPE_BOOST: Partial<Record<SearchType, number>> = { course: 1.8, todo: 1.2, action: 0.7, session: 0.9 };
+const TYPE_ORDER: SearchType[] = ['course', 'todo', 'memo', 'deadline', 'exam', 'session', 'note', 'topic', 'instructor', 'link', 'action'];
+const TYPE_BOOST: Partial<Record<SearchType, number>> = { course: 1.8, todo: 1.2, memo: 1.1, action: 0.7, session: 0.9 };
 
 export const normalize = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 export const slug = (s: string) => normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -82,7 +85,7 @@ export function detectCourse(text: string, courses: Course[]): string | null {
 }
 
 export function buildDocs(input: SearchInput): SearchDoc[] {
-  const { courses, tasks, notes, adminLinks, todos, exams } = input;
+  const { courses, tasks, notes, adminLinks, todos, exams, memos } = input;
   const course = (id: string) => courses.find((c) => c.id === id);
   const about = (id: string) => {
     const c = course(id);
@@ -145,6 +148,18 @@ export function buildDocs(input: SearchInput): SearchDoc[] {
       text: `To-do Todo Notiz Aufgabe ${about(t.courseId)}`,
       courseId: t.courseId === GENERAL_ID ? undefined : t.courseId,
       target: { kind: 'todo', id: t.id },
+    });
+  }
+
+  for (const m of memos) {
+    docs.push({
+      id: `memo:${m.id}`,
+      type: 'memo',
+      title: m.title,
+      subtitle: course(m.courseId)?.shortName ?? 'Allgemein',
+      text: `Notiz ${m.body} ${about(m.courseId)}`,
+      courseId: m.courseId === GENERAL_ID ? undefined : m.courseId,
+      target: { kind: 'memo', id: m.id },
     });
   }
 

@@ -57,7 +57,7 @@ function toggleItem(item: Item, done: boolean) {
 }
 
 /** Notion task, own to-do or exam – one consistent row */
-export function ItemRow({ item, now, hideCourse }: { item: Item; now: Date; hideCourse?: boolean }) {
+export function ItemRow({ item, now, hideCourse, linger }: { item: Item; now: Date; hideCourse?: boolean; linger?: boolean }) {
   const ui = useUI();
   const target = targetOf(item.courseId);
   const info = item.due ? dueInfo(item.due, now, item.allDay) : null;
@@ -82,7 +82,7 @@ export function ItemRow({ item, now, hideCourse }: { item: Item; now: Date; hide
   );
 
   return (
-    <li className={cx('row', 'item', item.done && 'is-done')}>
+    <li className={cx('row', 'item', item.done && 'is-done', linger && 'is-linger')}>
       {item.kind === 'exam' ? (
         <span className="row__lead" aria-hidden="true"><Icon name="flag" size={20} /></span>
       ) : (
@@ -166,7 +166,7 @@ export function TodoComposer({ fixedCourseId, autoFocus }: { fixedCourseId?: str
 }
 
 /** Open to-dos grouped by course (home page) – at most `limit` per course, rest behind a link */
-export function TodoGroups({ items, now, limit = 4 }: { items: Item[]; now: Date; limit?: number }) {
+export function TodoGroups({ items, now, limit = 4, lingering }: { items: Item[]; now: Date; limit?: number; lingering?: Set<string> }) {
   const groups = TARGETS.map((t) => ({ t, list: items.filter((i) => i.courseId === t.id) })).filter((g) => g.list.length > 0);
   return (
     <div className="todo-groups">
@@ -181,7 +181,7 @@ export function TodoGroups({ items, now, limit = 4 }: { items: Item[]; now: Date
             <span className="count">{list.length}</span>
           </h3>
           <ul className="list">
-            {list.slice(0, limit).map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse />)}
+            {list.slice(0, limit).map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering?.has(i.id)} />)}
           </ul>
           {list.length > limit && (
             <Link className="more more--row" to={t.id === GENERAL_ID ? '/tasks' : `/courses/${t.id}`}>

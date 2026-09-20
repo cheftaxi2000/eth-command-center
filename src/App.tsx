@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { EditorSheet } from './components/EditorSheet';
+import { MemoSheet } from './components/MemoSheet';
 import { Fab, SideNav, TabBar } from './components/Nav';
 import { SearchOverlay } from './components/SearchOverlay';
 import { ShortcutsSheet, useGlobalShortcuts } from './components/Shortcuts';
@@ -14,6 +15,7 @@ import { CoursePage } from './pages/CoursePage';
 import { CoursesPage } from './pages/Courses';
 import { LinksPage } from './pages/Links';
 import { NotePage } from './pages/NotePage';
+import { NotesPage } from './pages/Notes';
 import { SettingsPage } from './pages/Settings';
 import { TasksPage } from './pages/Tasks';
 import { TodayPage } from './pages/Today';
@@ -51,6 +53,7 @@ function Shell({ children }: { children: ReactNode }) {
       <Fab />
       <SearchOverlay />
       <EditorSheet />
+      <MemoSheet />
       <ShortcutsSheet />
       <Toasts />
     </div>
@@ -68,6 +71,7 @@ export function App() {
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/courses" element={<CoursesPage />} />
             <Route path="/courses/:id" element={<CoursePage />} />
+            <Route path="/notes" element={<NotesPage />} />
             <Route path="/notes/:id" element={<NotePage />} />
             <Route path="/links" element={<LinksPage />} />
             <Route path="/settings" element={<SettingsPage />} />

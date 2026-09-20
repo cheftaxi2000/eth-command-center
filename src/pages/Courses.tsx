@@ -27,6 +27,13 @@ export function CoursesPage() {
       <h2 className="h-section spaced">Mehr</h2>
       <ul className="panel list">
         <li>
+          <Link to="/notes" className="row row--link">
+            <Icon name="note" size={20} />
+            <span className="row__main"><span className="row__title">Notizen</span><span className="row__meta"><span>Persönlich, nicht aus Notion</span></span></span>
+            <Icon name="chevron-right" size={18} />
+          </Link>
+        </li>
+        <li>
           <Link to="/links" className="row row--link">
             <Icon name="link" size={20} />
             <span className="row__main"><span className="row__title">Links & Admin</span><span className="row__meta"><span>Curriculum, Administratives, alle Kurslinks</span></span></span>

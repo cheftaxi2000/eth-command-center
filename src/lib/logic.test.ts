@@ -4,7 +4,7 @@ import { backlog, buildItems, dueWithin } from './data';
 import { parseRoom, roomUrl } from './rooms';
 import { focusOfDay, nextOccurrence, occurrencesInWeek, occurrencesOn, suggestCourse } from './schedule';
 import { createSearch, detectCourse, groupHits } from './search';
-import { canonical, emptySynced, mergeSynced, migrateV1, normalizeSynced, type SyncedState, type Todo } from './state';
+import { canonical, emptySynced, mergeSynced, migrateV1, normalizeSynced, type Memo, type SyncedState, type Todo } from './state';
 import { syncOnce, type SyncApi } from './sync';
 import { dueInfo, dueMoment, isoWeek, parseLocal, startOfWeek } from './time';
 
@@ -12,6 +12,7 @@ const prefs = emptySynced().prefs;
 const at = (s: string) => parseLocal(s);
 const todo = (id: string, patch: Partial<Todo> = {}): Todo => ({ id, courseId: 'analysis-1', text: id, done: false, createdAt: 1, updatedAt: 1, ...patch });
 const withTodos = (...todos: Todo[]): SyncedState => ({ ...emptySynced(), todos: Object.fromEntries(todos.map((t) => [t.id, t])) });
+const memo = (id: string, patch: Partial<Memo> = {}): Memo => ({ id, courseId: 'allgemein', title: id, body: '', createdAt: 1, updatedAt: 1, ...patch });
 
 describe('time', () => {
   it('computes ISO weeks and week starts', () => {
@@ -48,12 +49,18 @@ describe('rooms', () => {
 });
 
 describe('schedule', () => {
-  it('lists Monday 2026-09-21 in time order (2-weekly lecture flagged while parity is unknown)', () => {
+  it('lists Monday 2026-09-21 in time order (default parity = even, so this odd week has no Analysis lecture)', () => {
+    expect(prefs.biweeklyParity).toBe('even'); // confirmed real schedule fact, not a guess
     const occ = occurrencesOn(at('2026-09-21'), seed.courses, prefs);
-    expect(occ.map((o) => o.session.id)).toEqual(['mech-v-mo', 'ana-v-mo', 'ed-v']);
-    expect(occ[1].flag).toBe('biweekly');
+    expect(occ.map((o) => o.session.id)).toEqual(['mech-v-mo', 'ed-v']);
+    // …but shows up (flagged as uncertain) once someone explicitly clears the parity in Settings
+    const unset = occurrencesOn(at('2026-09-21'), seed.courses, { ...prefs, biweeklyParity: null });
+    expect(unset.map((o) => o.session.id)).toEqual(['mech-v-mo', 'ana-v-mo', 'ed-v']);
+    expect(unset[1].flag).toBe('biweekly');
   });
   it('applies week parity and the chosen exercise group', () => {
+    expect(occurrencesOn(at('2026-09-21'), seed.courses, prefs).some((o) => o.session.id === 'ana-v-mo')).toBe(false); // KW 39, odd
+    expect(occurrencesOn(at('2026-09-28'), seed.courses, prefs).some((o) => o.session.id === 'ana-v-mo')).toBe(true); // KW 40, even
     const odd = { ...prefs, biweeklyParity: 'odd' as const };
     expect(occurrencesOn(at('2026-09-21'), seed.courses, odd).some((o) => o.session.id === 'ana-v-mo')).toBe(true);
     expect(occurrencesOn(at('2026-09-28'), seed.courses, odd).some((o) => o.session.id === 'ana-v-mo')).toBe(false);
@@ -69,7 +76,7 @@ describe('schedule', () => {
   it('finds the running / next session and the next session of a kind', () => {
     const mon = occurrencesOn(at('2026-09-21'), seed.courses, prefs);
     expect(focusOfDay(at('2026-09-21T11:00'), mon)).toMatchObject({ live: true, occ: { session: { id: 'mech-v-mo' } } });
-    expect(focusOfDay(at('2026-09-21T12:05'), mon)).toMatchObject({ live: false, occ: { session: { id: 'ana-v-mo' } } });
+    expect(focusOfDay(at('2026-09-21T12:05'), mon)).toMatchObject({ live: false, occ: { session: { id: 'ed-v' } } });
     expect(focusOfDay(at('2026-09-21T17:00'), mon)).toBeNull();
     expect(nextOccurrence(at('2026-09-19T10:00'), seed.courses, prefs)?.session.id).toBe('mech-v-mo');
     const ana = seed.courses.filter((c) => c.id === 'analysis-1');
@@ -119,30 +126,37 @@ describe('merge & sync', () => {
     expect(synced.taskDone.k).toEqual({ done: true, updatedAt: 7 });
     expect(local.theme).toBe('dark');
     expect(normalizeSynced({ todos: { bad: 1, ok: todo('ok') }, prefs: 'x' }).todos).toEqual({ ok: todo('ok') });
+    // v1 installs have no `memos` at all – old data must load without crashing, defaulting to none
+    expect(synced.memos).toEqual({});
   });
 
-  /** In-memory stand-in for the GitHub contents API, including sha checks */
-  function fakeRepo() {
-    let file: { text: string; sha: string } | null = null;
-    let n = 0;
+  it('merges notes like to-dos and exams, and drops malformed ones', () => {
+    const a = { ...emptySynced(), memos: { p: memo('p', { title: 'alt', updatedAt: 1 }) } };
+    const b = { ...emptySynced(), memos: { p: memo('p', { title: 'neu', updatedAt: 5 }), q: memo('q') } };
+    expect(mergeSynced(a, b).memos).toEqual({ p: memo('p', { title: 'neu', updatedAt: 5 }), q: memo('q') });
+    expect(normalizeSynced({ memos: { bad: { id: 'bad' }, ok: memo('ok') } }).memos).toEqual({ ok: memo('ok') });
+  });
+
+  /** In-memory stand-in for the kvdb.io bucket: plain read/write, no versioning. */
+  function fakeBucket() {
+    let text: string | null = null;
     const api = (): SyncApi => ({
       async read() {
-        return file ? { state: normalizeSynced(JSON.parse(file.text)), sha: file.sha } : { state: null };
+        return { state: text ? normalizeSynced(JSON.parse(text)) : null };
       },
-      async write(state, sha) {
-        if ((file?.sha ?? undefined) !== sha) return false;
-        file = { text: canonical(state), sha: `sha${++n}` };
+      async write(state) {
+        text = canonical(state);
         return true;
       },
     });
-    return { api, get: () => (file ? normalizeSynced(JSON.parse(file.text)) : null) };
+    return { api, get: () => (text ? normalizeSynced(JSON.parse(text)) : null) };
   }
 
   it('two devices converge: additions, check-offs and deletions travel both ways', async () => {
-    const repo = fakeRepo();
+    const bucket = fakeBucket();
     let laptop = withTodos(todo('from-laptop'));
     let ipad = withTodos(todo('from-ipad'));
-    const sync = (get: () => SyncedState, set: (s: SyncedState) => void) => syncOnce(get, set, repo.api());
+    const sync = (get: () => SyncedState, set: (s: SyncedState) => void) => syncOnce(get, set, bucket.api());
 
     expect(await sync(() => laptop, (s) => (laptop = s))).toBe('pushed');
     expect(await sync(() => ipad, (s) => (ipad = s))).toBe('pushed');
@@ -162,28 +176,28 @@ describe('merge & sync', () => {
     expect(await sync(() => laptop, (s) => (laptop = s))).toBe('unchanged');
   });
 
-  it('retries when another device wrote in between (stale sha)', async () => {
-    const repo = fakeRepo();
-    let first = true;
-    const racing: SyncApi = {
-      read: () => repo.api().read(),
-      async write(state, sha) {
-        if (first) {
-          first = false;
-          await repo.api().write(withTodos(todo('other-device')), sha); // someone else wins the race
-          return repo.api().write(state, sha); // our sha is now stale → false
-        }
-        return repo.api().write(state, sha);
-      },
-    };
-    let mine = withTodos(todo('mine'));
-    expect(await syncOnce(() => mine, (s) => (mine = s), racing)).toBe('pushed');
-    expect(Object.keys(repo.get()!.todos).sort()).toEqual(['mine', 'other-device']);
+  it('a same-instant write race self-heals on the next sync round (kvdb has no conflict check)', async () => {
+    const bucket = fakeBucket();
+    let laptop = withTodos(todo('from-laptop'));
+    let ipad = withTodos(todo('from-ipad'));
+    const sync = (get: () => SyncedState, set: (s: SyncedState) => void) => syncOnce(get, set, bucket.api());
+
+    // Both read the (empty) bucket before either has written – laptop's write clobbers ipad's
+    await bucket.api().write(withTodos()); // primed empty, as if freshly created
+    await sync(() => laptop, (s) => (laptop = s));
+    await bucket.api().write(withTodos()); // simulate: ipad's read happened before laptop's write landed
+    await sync(() => ipad, (s) => (ipad = s));
+    expect(Object.keys(bucket.get()!.todos)).toEqual(['from-ipad']); // laptop's item is transiently missing …
+
+    // … but each device still has it locally, so the very next sync round brings it back for good
+    await sync(() => laptop, (s) => (laptop = s));
+    await sync(() => ipad, (s) => (ipad = s));
+    expect(Object.keys(bucket.get()!.todos).sort()).toEqual(['from-ipad', 'from-laptop']);
   });
 });
 
 describe('search', () => {
-  const search = createSearch({ ...seed, todos: [todo('Skript Taylorreihen nachlesen')], exams: [] });
+  const search = createSearch({ ...seed, todos: [todo('Skript Taylorreihen nachlesen')], exams: [], memos: [] });
   const top = (q: string) => search.search(q)[0];
 
   it('finds courses by name and alias', () => {
@@ -202,7 +216,7 @@ describe('search', () => {
   });
   it('ignores case and umlauts, and never invents content', () => {
     expect(search.search('PRUFUNG').some((h) => h.id === 'action:add-exam')).toBe(true);
-    expect(createSearch({ ...seed, todos: [], exams: [] }).search('Taylor')).toEqual([]);
+    expect(createSearch({ ...seed, todos: [], exams: [], memos: [] }).search('Taylor')).toEqual([]);
   });
   it('guesses the course from free text for quick capture', () => {
     expect(detectCourse('Mechanik Übung 3 nachrechnen', seed.courses)).toBe('mechanik-1');

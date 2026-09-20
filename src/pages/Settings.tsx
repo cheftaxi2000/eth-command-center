@@ -9,7 +9,7 @@ import { COURSES } from '../lib/data';
 import { useTitle } from '../lib/hooks';
 import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
-import { connectSync, disconnectSync, getSyncConfig, syncNow, useSyncStatus } from '../lib/sync';
+import { getSyncConfig, joinSync, newSyncCode, syncNow, useSyncStatus } from '../lib/sync';
 import { toLocalDate } from '../lib/time';
 
 export function SettingsPage() {
@@ -48,7 +48,7 @@ export function SettingsPage() {
     }
   };
 
-  const ownCount = Object.keys(synced.todos).length + Object.keys(synced.exams).length;
+  const ownCount = Object.keys(synced.todos).length + Object.keys(synced.exams).length + Object.keys(synced.memos).length;
 
   return (
     <>
@@ -91,7 +91,7 @@ export function SettingsPage() {
       <section>
         <h2 className="h-section spaced">Backup</h2>
         <div className="panel panel--pad">
-          <p className="hint hint--top">Deine To-dos, Prüfungen und Häkchen als Datei – zusätzlich zum Sync oder falls du ihn nicht nutzt.</p>
+          <p className="hint hint--top">Deine To-dos, Notizen, Prüfungen und Häkchen als Datei – zusätzlich zum Sync oder falls du ihn nicht nutzt.</p>
           <div className="btn-row">
             <button type="button" className="btn" onClick={exportBackup}>Backup herunterladen</button>
             <button type="button" className="btn" onClick={() => fileRef.current?.click()}>Backup einlesen</button>
@@ -106,7 +106,7 @@ export function SettingsPage() {
           <dl className="kv">
             <dt>Quelle</dt><dd>Notion „UNI“ – nur gelesen, nie verändert</dd>
             <dt>Stand</dt><dd>{seed.meta.snapshotAt}</dd>
-            <dt>Eigene Einträge</dt><dd>{Object.keys(synced.todos).length} To-dos · {Object.keys(synced.exams).length} Prüfungen</dd>
+            <dt>Eigene Einträge</dt><dd>{Object.keys(synced.todos).length} To-dos · {Object.keys(synced.memos).length} Notizen · {Object.keys(synced.exams).length} Prüfungen</dd>
             <dt>App-Version</dt><dd>{__BUILD_TIME__}</dd>
           </dl>
           {ownCount > 0 && (confirm ? (
@@ -118,7 +118,7 @@ export function SettingsPage() {
             </div>
           ) : (
             <div className="btn-row">
-              <button type="button" className="btn" onClick={() => setConfirm(true)}>Alle eigenen To-dos & Prüfungen löschen</button>
+              <button type="button" className="btn" onClick={() => setConfirm(true)}>Alle eigenen To-dos, Notizen & Prüfungen löschen</button>
             </div>
           ))}
         </div>
@@ -137,19 +137,19 @@ export function SettingsPage() {
 function SyncSection() {
   const status = useSyncStatus();
   const cfg = getSyncConfig();
-  const [token, setToken] = useState('');
-  const [repo, setRepo] = useState('studium-sync');
+  const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  const connect = async (e: FormEvent) => {
+  const join = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      const c = await connectSync(token, repo);
-      setToken('');
-      toast({ text: `Verbunden mit ${c.owner}/${c.repo}` });
+      await joinSync(joinCode);
+      setJoinCode('');
+      toast({ text: 'Gekoppelt – deine Einträge von beiden Geräten sind jetzt zusammengeführt' });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -157,58 +157,75 @@ function SyncSection() {
     }
   };
 
+  const copyCode = async () => {
+    if (!cfg) return;
+    try {
+      await navigator.clipboard.writeText(cfg.bucket);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable – the code is still selectable text */
+    }
+  };
+
+  const freshCode = async () => {
+    setBusy(true);
+    try {
+      await newSyncCode();
+      toast({ text: 'Neuer Sync-Code erzeugt – deine bisherigen Einträge bleiben auf diesem Gerät' });
+    } catch (err) {
+      toast({ text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const last = status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) : null;
+  const stateText =
+    status.phase === 'syncing' ? 'Synchronisiere …'
+    : status.phase === 'error' ? 'Sync-Problem'
+    : status.phase === 'offline' ? 'Offline – synct automatisch weiter'
+    : status.phase === 'starting' ? 'Code wird erstellt …'
+    : 'Synchronisiert';
 
   return (
     <section id="sync" className="scroll-target">
       <h2 className="h-section">Sync zwischen Laptop und iPad</h2>
       <div className="panel panel--pad">
-        {cfg ? (
+        <p className="sync-state">
+          <Icon name={status.phase === 'error' ? 'alert' : status.phase === 'offline' ? 'cloud-off' : 'cloud'} size={20} />
+          <span><strong>{stateText}</strong>{last && ` · zuletzt ${last}`}</span>
+        </p>
+        {status.error && <p className="form-error">{status.error}</p>}
+
+        {cfg && (
           <>
-            <p className="sync-state">
-              <Icon name={status.phase === 'error' ? 'alert' : status.phase === 'offline' ? 'cloud-off' : 'cloud'} size={20} />
-              <span>
-                <strong>
-                  {status.phase === 'syncing' ? 'Synchronisiere …' : status.phase === 'error' ? 'Sync-Problem' : status.phase === 'offline' ? 'Offline' : 'Synchronisiert'}
-                </strong>
-                {' · '}{cfg.owner}/{cfg.repo}{last && ` · zuletzt ${last}`}
-              </span>
+            <p className="hint hint--top">
+              Läuft automatisch, ganz ohne Login. Zum Koppeln eines zweiten Geräts trägst du dort denselben Code ein:
             </p>
-            {status.error && <p className="form-error">{status.error}</p>}
-            <p className="hint">To-dos, Prüfungen, Häkchen und Stundenplan-Einstellungen werden über die Datei <code>{cfg.path}</code> in deinem privaten Repo abgeglichen. Farbschema bleibt pro Gerät.</p>
+            <div className="sync-code" data-noswipe>
+              <span className="sync-code__value">{cfg.bucket}</span>
+              <button type="button" className="btn btn--sm" onClick={() => void copyCode()}>{copied ? 'Kopiert' : 'Kopieren'}</button>
+            </div>
+            <p className="hint">Wer diesen Code kennt, kann diese Daten lesen und ändern – nicht öffentlich teilen.</p>
             <div className="btn-row">
               <button type="button" className="btn btn--primary" onClick={() => void syncNow()} disabled={status.phase === 'syncing'}>Jetzt synchronisieren</button>
-              <button type="button" className="btn" onClick={() => { disconnectSync(); toast({ text: 'Sync auf diesem Gerät getrennt' }); }}>Trennen</button>
+              <button type="button" className="btn" onClick={() => void freshCode()} disabled={busy}>Neuen Code erzeugen</button>
             </div>
           </>
-        ) : (
-          <form className="form" onSubmit={connect}>
-            <p className="hint hint--top">Einmal pro Gerät einrichten (am iPad <strong>in der installierten App</strong>, nicht in Safari). Deine Einträge liegen dann privat in deinem GitHub – Notion bleibt unberührt.</p>
-            <ol className="steps">
-              <li>
-                <a href="https://github.com/new?name=studium-sync&visibility=private" target="_blank" rel="noopener noreferrer">Privates Repo „studium-sync“ anlegen</a>
-                {' '}– Sichtbarkeit <strong>Private</strong>.
-              </li>
-              <li>
-                <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">Fine-grained Token erstellen</a>:
-                Repository access → <em>Only select repositories</em> → studium-sync; Permissions → <em>Contents: Read and write</em>.
-              </li>
-              <li>Token kopieren und hier einfügen.</li>
-            </ol>
-            <label className="field">
-              <span>GitHub-Token</span>
-              <input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="github_pat_…" autoComplete="off" required />
-            </label>
-            <label className="field">
-              <span>Repo</span>
-              <input value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="studium-sync oder benutzer/studium-sync" autoCapitalize="off" autoCorrect="off" spellCheck={false} required />
-            </label>
-            {error && <p className="form-error">{error}</p>}
-            <div className="btn-row">
-              <button type="submit" className="btn btn--primary" disabled={busy}>{busy ? 'Verbinde …' : 'Verbinden'}</button>
-            </div>
-          </form>
         )}
+
+        <form className="form" onSubmit={join} style={{ marginTop: 18 }}>
+          <label className="field">
+            <span>Code eines anderen Geräts eingeben</span>
+            <input value={joinCode} onChange={(e) => setJoinCode(e.target.value)} placeholder="z. B. FRxf6S1NureFCzBQtiDtS8"
+              autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+          </label>
+          {error && <p className="form-error">{error}</p>}
+          <div className="btn-row">
+            <button type="submit" className="btn" disabled={busy || !joinCode.trim()}>{busy ? 'Koppele …' : 'Koppeln'}</button>
+          </div>
+        </form>
       </div>
     </section>
   );
