@@ -10,7 +10,7 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
 - **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene (nicht nur die nächsten 7 Tage) und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
 - **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
-- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `S` synchronisieren, `?` zeigt alles
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `C` Assistent, `S` synchronisieren, `?` zeigt alles
 - **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
 
 ## Notion bleibt unverändert (read-only)
@@ -66,28 +66,36 @@ wird. Bestehende Daten werden dabei mitgenommen.
 
 Offline erfasste Änderungen werden automatisch nachgeholt, sobald wieder eine Verbindung besteht.
 
-## AI-Assistent (vorbereitet, noch ohne Modell)
+## AI-Assistent
 
-`src/lib/ai/` enthält die komplette Schicht, über die später eine (kostenlose) AI-API die App bedienen kann
-– ohne eigenes Datenmodell und ohne direkten Zugriff auf den Speicher:
+**Öffnen:** Taste `C`, „Assistent" in der Seitenleiste oder auf dem iPad unter *Kurse → Mehr*. Schreib
+z. B. „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2" oder „Was muss ich diese Woche noch machen?".
+
+**Gemini einschalten:** *Einstellungen → Assistent (Gemini)* → kostenlosen Schlüssel von
+[Google AI Studio](https://aistudio.google.com/apikey) einfügen → Speichern (testet die Verbindung gleich mit).
+Ohne Schlüssel läuft ein einfacher Regel-Modus, der Standardsätze versteht.
+
+- Der Schlüssel liegt **nur im jeweiligen Browser**. Er wird nicht synchronisiert (der Sync-Speicher ist
+  öffentlich lesbar), steht in keinem Backup und nirgends im Code, also einmal pro Gerät eintragen.
+- Die App fragt Gemini direkt, ohne eigenen Server. Die CSP erlaubt dafür genau `generativelanguage.googleapis.com`.
+- Gratis-Tarif: Google darf Eingaben zur Verbesserung seiner Dienste nutzen. Der Assistent sieht Aufgaben,
+  Notizen und Stundenplan, also nichts Sensibles in Notizen.
+
+So funktioniert es (`src/lib/ai/`):
 
 ```
-Satz → AIService → Provider (Modell) → strukturierte Action → Validierung → Store → UI + Sync
+Satz → AIService → Gemini → strukturierte Action → Validierung → Store → UI + Sync
 ```
 
-- `context.ts` – `buildAIContext()` projiziert den aktuellen Zustand (Fächer, Aufgaben, Notizen, Stundenplan,
-  Einstellungen) als Daten; getrennt in *permanent* und *dynamisch*, damit nur das Nötige verschickt wird.
-  Wird bei **jeder** Anfrage neu gebaut – die AI kann gar nicht mit veralteten Daten arbeiten.
-- `actions.ts` – die einzigen erlaubten Operationen (`get_tasks`, `create_task`, `delete_note`, …) mit
-  deklarierten Parametern, Validierung und Bestätigungspflicht für alles Löschende.
-- `provider.ts` – anbieterunabhängige Schnittstelle. Der API-Key liegt **nie** im Frontend: konfiguriert
-  wird nur die URL eines server-seitigen Proxys (`VITE_AI_PROXY_URL`), der den Schlüssel aus einer
-  Environment-Variable nimmt.
-- `mock.ts` – regelbasierter Ersatz-Provider ohne Netz, damit die ganze Kette schon heute testbar ist:
-  `mockAI('Füge eine Analysis-Aufgabe für Freitag hinzu: Serie 2')`.
-
-Getestet in `src/lib/ai/ai.test.ts` (u. a.: Löschen passiert nie ohne Bestätigung, erfundene Aktionen und
-Parameter werden abgewiesen, ein neuer Eintrag steckt sofort im nächsten Context).
+- `context.ts`: `buildAIContext()` baut bei **jeder** Nachricht den aktuellen Stand neu (Fächer, Aufgaben,
+  Notizen, Stundenplan); getrennt in *permanent* und *dynamisch*.
+- `actions.ts`: die einzigen erlaubten Operationen (`create_task`, `delete_note`, …) mit Validierung;
+  Löschen passiert nie ohne „Ja, löschen".
+- `gemini.ts` / `key.ts`: Gemini-Anbindung und lokaler Schlüssel. Gemini-Modellnamen, die Google
+  abschaltet, ersetzt die App selbständig durch ein aktuelles „flash"-Modell.
+- `provider.ts`: anbieterunabhängige Schnittstelle. Ein anderer Anbieter = ein neuer Provider; optional
+  auch ein eigener Server-Proxy über `VITE_AI_PROXY_URL`.
+- `mock.ts`: der Regel-Modus, zugleich Grundlage der Tests in `ai.test.ts`.
 
 ## Entwickeln
 
@@ -108,7 +116,7 @@ src/
   lib/state.ts        eigenes Datenmodell, Merge (last-writer-wins + Löschmarken), v1-Migration
   lib/store.ts        zentraler Zustand + Aktionen – die einzige Schreibstelle der App
   lib/sync.ts         automatischer Sync über kvdb.io (fest eingebauter Sync-Code, kein Token)
-  lib/ai/             Context, Actions, Provider-Abstraktion und Mock für den späteren Assistenten
+  lib/ai/             Assistent: Context, Actions, Gemini, lokaler Schlüssel, Regel-Modus
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag
   lib/data.ts         Fristen & To-dos als eine Liste
   lib/search.ts       Suche, Fach-Erkennung für Schnellerfassung

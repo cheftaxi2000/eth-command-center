@@ -80,6 +80,11 @@ export function SideNav() {
         <span className="side__btn-label">Neues To-do</span>
         <kbd className="kbd-hint">N</kbd>
       </button>
+      <button type="button" className="side__btn" onClick={() => ui.setAssistantOpen(true)}>
+        <Icon name="spark" size={20} />
+        <span className="side__btn-label">Assistent</span>
+        <kbd className="kbd-hint">C</kbd>
+      </button>
 
       <nav className="side__nav">
         {MAIN.map((n) => (

@@ -20,6 +20,8 @@ interface UI {
   closeMemoEditor: () => void;
   helpOpen: boolean;
   setHelpOpen: (v: boolean) => void;
+  assistantOpen: boolean;
+  setAssistantOpen: (v: boolean) => void;
 }
 
 const Ctx = createContext<UI | null>(null);
@@ -29,6 +31,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [editor, setEditor] = useState<EditorRequest | null>(null);
   const [memoEditor, setMemoEditor] = useState<MemoRequest | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -40,9 +43,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor,
-      memoEditor, openMemoEditor, closeMemoEditor, helpOpen, setHelpOpen,
+      memoEditor, openMemoEditor, closeMemoEditor, helpOpen, setHelpOpen, assistantOpen, setAssistantOpen,
     }),
-    [searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor, memoEditor, openMemoEditor, closeMemoEditor, helpOpen],
+    [searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor, memoEditor, openMemoEditor, closeMemoEditor, helpOpen, assistantOpen],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

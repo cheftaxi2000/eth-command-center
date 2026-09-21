@@ -73,12 +73,26 @@ function cleanTitle(raw: string, cut: string[]): string {
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** What is left of a command once the command words are gone: "lösch die aufgabe kapitel 3" → "kapitel 3". */
+const fragment = (t: string) =>
+  t
+    .replace(/[.!?]+$/, '')
+    .replace(/\b(bitte|lösche?|loesche?|entferne|verschieb\w*|schieb\w*|hake?|ab|ist|sind|erledigt|fertig|die|der|das|den|meine[nm]?|aufgabe|to-?do|notiz|auf|nach|bis)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
 /** Open items whose title (or subject) the sentence mentions – how "die Analysis-Aufgabe" resolves. */
 function findTasks(text: string, subjectId: string | null) {
   const t = text.toLowerCase();
   const open = buildItems(getPersonal().synced, getNow()).filter((i) => !i.done);
   const byTitle = open.filter((i) => i.title.length > 2 && t.includes(i.title.toLowerCase()));
   if (byTitle.length > 0) return byTitle;
+  // "Lösch die Aufgabe Kapitel 3" → a title that merely starts with / contains "kapitel 3"
+  const rest = fragment(t);
+  if (rest.length > 2) {
+    const partial = open.filter((i) => i.kind !== 'notion' && i.title.toLowerCase().includes(rest));
+    if (partial.length > 0) return partial;
+  }
   return subjectId ? open.filter((i) => i.courseId === subjectId) : [];
 }
 
@@ -87,6 +101,11 @@ function findNotes(text: string, subjectId: string | null) {
   const all = Object.values(getPersonal().synced.memos);
   const byTitle = all.filter((m) => m.title.length > 2 && t.includes(m.title.toLowerCase()));
   if (byTitle.length > 0) return byTitle;
+  const rest = fragment(t);
+  if (rest.length > 2) {
+    const partial = all.filter((m) => m.title.toLowerCase().includes(rest));
+    if (partial.length > 0) return partial;
+  }
   return subjectId ? all.filter((m) => m.courseId === subjectId) : [];
 }
 

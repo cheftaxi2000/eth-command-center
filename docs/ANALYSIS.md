@@ -153,6 +153,23 @@ Provider-Schnittstelle und ein regelbasierter Mock; 17 Tests. Kein zweites Daten
 Notion-Snapshot; für frei gesetzte Termine bräuchte es einen eigenen `events`-Typ im Datenmodell. Bis dahin
 bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sagt es dem Modell explizit.
 
+## v5 – Assistent angeschlossen (2026-09-21)
+- **Gemini direkt aus dem Browser, ohne Server:** Der Nutzer wollte keinen Cloudflare-Worker. Google erlaubt
+  CORS für diese Seite (per Preflight geprüft), also ruft die App Gemini direkt auf. Der Schlüssel wird in den
+  Einstellungen einmal pro Browser eingetragen und liegt nur in dessen localStorage (`lib/ai/key.ts`), bewusst
+  getrennt vom synchronisierten Zustand, weil der Sync-Speicher öffentlich lesbar ist. Fest in den Code war
+  keine Option: Das Bundle ist öffentlich.
+- **Chatfenster** (`AssistantSheet`): `C`, Seitenleiste, iPad unter *Kurse → Mehr*. Zeigt, was tatsächlich
+  geändert wurde, und fragt vor jedem Löschen. Ohne Schlüssel antwortet der Regel-Modus.
+- **Zweite Runde für Fragen:** Ruft das Modell nur `get_…` auf und sagt nichts, bekommt es die Ergebnisse
+  einmal zurück, ohne Werkzeuge, und kann damit nur antworten, nicht erneut handeln.
+- **Gefundener Fehler:** Die Bestätigung eines Löschens lief in einem React-State-Updater; StrictMode ruft den
+  doppelt auf → gelöscht wurde einmal, aber eine falsche Fehlermeldung erschien. Aktion läuft jetzt außerhalb.
+- Geprüft: 47 Tests (u. a. Gemini-Anfrage mit simuliertem Google-Server, Modellwechsel bei abgeschaltetem
+  Modell, 400/429 verständlich gemeldet); im Browser Anlegen, Löschen mit Bestätigung, Zähler live; ein
+  absichtlich falscher Schlüssel gegen den echten Google-Endpunkt → „Gemini lehnt den Schlüssel ab".
+  Mit einem gültigen Schlüssel konnte ich nicht testen, der liegt nur beim Nutzer.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
@@ -164,5 +181,5 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
 - Der geteilte Sync-Code ist öffentlich lesbar (siehe v4). Echter Schutz bräuchte entweder ein Backend mit
   Login oder clientseitige Verschlüsselung mit einer Passphrase pro Gerät – beides widerspricht dem
   ausdrücklichen Wunsch „ohne jegliche Tokens oder sonst etwas".
-- AI: Stundenplan-Schreibzugriff fehlt mangels eigenem `events`-Typ; ausserdem gibt es noch kein Chat-UI und
-  keinen Proxy. Beides ist vorbereitet (`AIProvider`, `VITE_AI_PROXY_URL`), aber nicht gebaut.
+- AI: Stundenplan-Schreibzugriff fehlt mangels eigenem `events`-Typ (einmalige Termine → datierte To-dos).
+  Gesprächsverlauf lebt nur, solange die App offen ist.

@@ -44,13 +44,13 @@ export function WeekPage() {
   const swipe = useSwipe((dir) => setOffset((o) => o + (dir === 'left' ? 1 : -1)));
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (ui.searchOpen || ui.editor || ui.helpOpen || isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (ui.searchOpen || ui.editor || ui.memoEditor || ui.assistantOpen || ui.helpOpen || isTypingTarget(e.target) || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === 'ArrowLeft') setOffset((o) => o - 1);
       else if (e.key === 'ArrowRight') setOffset((o) => o + 1);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [ui.searchOpen, ui.editor, ui.helpOpen]);
+  }, [ui.searchOpen, ui.editor, ui.memoEditor, ui.assistantOpen, ui.helpOpen]);
 
   return (
     <div {...swipe}>

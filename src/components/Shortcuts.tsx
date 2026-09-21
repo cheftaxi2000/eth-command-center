@@ -37,13 +37,14 @@ export function useGlobalShortcuts() {
         return;
       }
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (ui.searchOpen || ui.editor || ui.memoEditor || ui.helpOpen || isTypingTarget(e.target)) return;
+      if (ui.searchOpen || ui.editor || ui.memoEditor || ui.helpOpen || ui.assistantOpen || isTypingTarget(e.target)) return;
 
       const key = e.key.toLowerCase();
       if (key === '/') ui.openSearch();
       else if (key === 'n') ui.openEditor({ mode: 'new', kind: 'todo', courseId });
       else if (key === 'm') ui.openMemoEditor({ mode: 'new', courseId });
       else if (key === 'p') ui.openEditor({ mode: 'new', kind: 'exam', courseId });
+      else if (key === 'c') ui.setAssistantOpen(true);
       else if (key === 's') {
         void syncNow();
         toast({ text: 'Synchronisiere …' }, 1500);
@@ -77,6 +78,7 @@ const GROUPS: { title: string; list: [string, string][] }[] = [
       ['N', 'Neues To-do (im aktuellen Kurs)'],
       ['M', 'Neue Notiz (im aktuellen Kurs)'],
       ['P', 'Neue Prüfung'],
+      ['C', 'Assistent (Chat)'],
     ],
   },
   {

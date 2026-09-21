@@ -1,5 +1,7 @@
-import { executeAction, runConfirmed, toolSpecs, type ActionCall, type ActionResult } from './actions';
+import { ACTIONS, executeAction, runConfirmed, toolSpecs, type ActionCall, type ActionResult } from './actions';
 import { buildAIContext, formatAIContext, type AIContextOptions } from './context';
+import { geminiProvider } from './gemini';
+import { getAIKey } from './key';
 import { mockProvider } from './mock';
 import { configuredProxy, httpProvider, type AIMessage, type AIProvider } from './provider';
 
@@ -30,6 +32,8 @@ const SYSTEM = [
   'Erfinde nie Aufgaben, Notizen oder Termine, die nicht im Kontext stehen.',
   'Verwende für Aufgaben und Notizen immer die Ids aus dem Kontext.',
   'Datumsangaben immer als JJJJ-MM-TT bzw. JJJJ-MM-TTTHH:MM.',
+  'Fragen beantwortest du direkt aus dem Kontext – dafür brauchst du keine get_-Aktion.',
+  'Nach einer Änderung bestätigst du in einem kurzen Satz, was du getan hast.',
 ].join(' ');
 
 export class AIService {
@@ -57,7 +61,21 @@ export class AIService {
       if (result.needsConfirmation) pending.push({ call, question: result.message });
       else performed.push(result);
     }
-    return { reply: reply.text, performed, pending, contextAt: context.generatedAt };
+
+    // A model that only looked something up (get_tasks …) often says nothing yet. Hand it the
+    // results once more – without tools, so it can only answer, not act again.
+    let text = reply.text;
+    const reads = performed.filter((r) => r.ok && ACTIONS[r.action]?.readOnly);
+    if (!text && reads.length > 0 && pending.length === 0) {
+      const results = reads.map((r) => `${r.action}: ${JSON.stringify(r.data)}`).join('\n').slice(0, 30_000);
+      const second = await this.provider.complete({
+        messages: [...messages, { role: 'system', content: `Ergebnisse deiner Abfragen:\n${results}\nBeantworte jetzt die Frage des Nutzers.` }],
+        contextText: formatAIContext(context),
+        tools: [],
+      });
+      text = second.text;
+    }
+    return { reply: text, performed, pending, contextAt: context.generatedAt };
   }
 
   /** Run something the user just said yes to. Validated again – confirmation is not a bypass. */
@@ -67,12 +85,16 @@ export class AIService {
 }
 
 /**
- * The service this build uses: the real proxy when VITE_AI_PROXY_URL is set, otherwise the
- * rule-based mock, so the app is never in a broken state just because no model is connected yet.
+ * The service to use right now: a server proxy if one is configured at build time, otherwise
+ * Gemini with the key saved in THIS browser, otherwise the rule-based mock – so the assistant
+ * always answers something, and gets smart as soon as a key is entered. Built per use, so a key
+ * entered in Settings takes effect immediately.
  */
 export function createAIService(): AIService {
   const proxy = configuredProxy();
-  return new AIService(proxy ? httpProvider(proxy) : mockProvider());
+  if (proxy) return new AIService(httpProvider(proxy));
+  const key = getAIKey();
+  return new AIService(key ? geminiProvider(key) : mockProvider());
 }
 
 /** Demo/test entry point: one sentence in, the full pipeline out, with no model involved. */

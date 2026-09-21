@@ -4,7 +4,8 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 /**
  * Content-Security-Policy for the production build. `connect-src` only allows the app itself and
- * kvdb.io (the token-free device sync) – the app technically cannot talk to Notion or anywhere else.
+ * kvdb.io (the token-free device sync) and Gemini (the assistant, with the key the user typed in) –
+ * the app technically cannot talk to Notion or anywhere else.
  */
 const CSP = [
   "default-src 'self'",
@@ -12,7 +13,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
   "font-src 'self'",
-  "connect-src 'self' https://kvdb.io",
+  "connect-src 'self' https://kvdb.io https://generativelanguage.googleapis.com",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",

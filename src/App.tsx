@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
+import { AssistantSheet } from './components/AssistantSheet';
 import { EditorSheet } from './components/EditorSheet';
 import { MemoSheet } from './components/MemoSheet';
 import { Fab, SideNav, TabBar } from './components/Nav';
@@ -54,6 +55,7 @@ function Shell({ children }: { children: ReactNode }) {
       <SearchOverlay />
       <EditorSheet />
       <MemoSheet />
+      <AssistantSheet />
       <ShortcutsSheet />
       <Toasts />
     </div>

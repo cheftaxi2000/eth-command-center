@@ -3,7 +3,8 @@
  *
  *   context.ts   buildAIContext()  – the app's state as structured data, rebuilt on every call
  *   actions.ts   ACTIONS           – the only sanctioned way to change anything, with validation
- *   provider.ts  AIProvider        – model-agnostic interface; the key lives on a server, never here
+ *   provider.ts  AIProvider        – model-agnostic interface (+ optional server proxy)
+ *   gemini.ts    geminiProvider()  – Gemini straight from the browser, key from key.ts (this device only)
  *   mock.ts      mockProvider()    – rule-based stand-in so the chain is testable today
  *   service.ts   AIService         – ties the three together; see mockAI() for a one-line demo
  *
@@ -17,5 +18,7 @@ export type { ActionCall, ActionDef, ActionResult, ParamDef, ParamType } from '.
 export { configuredProxy, httpProvider } from './provider';
 export type { AIMessage, AIProvider, AIReply, AIRequest, ProxyConfig } from './provider';
 export { mockProvider, parseIntent } from './mock';
+export { geminiProvider, parseCompletion, toOpenAITools } from './gemini';
+export { getAIKey, maskKey, setAIKey, useAIKey } from './key';
 export { AIService, createAIService, mockAI } from './service';
 export type { AITurn } from './service';

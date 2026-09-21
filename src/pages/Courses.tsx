@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { CourseRow } from '../components/course';
 import { SyncBadge, noteCountLabel, useNoteCount } from '../components/Nav';
 import { Icon } from '../components/ui';
+import { useUI } from '../components/ui-context';
 import { seed } from '../data/seed';
 import { COURSES, useItems } from '../lib/data';
 import { useTitle } from '../lib/hooks';
@@ -12,6 +13,7 @@ export function CoursesPage() {
   const now = useNow();
   const items = useItems();
   const notes = useNoteCount();
+  const ui = useUI();
   return (
     <>
       <header className="page-head">
@@ -27,6 +29,13 @@ export function CoursesPage() {
 
       <h2 className="h-section spaced">Mehr</h2>
       <ul className="panel list">
+        <li>
+          <button type="button" className="row row--link memo-row" onClick={() => ui.setAssistantOpen(true)}>
+            <Icon name="spark" size={20} />
+            <span className="row__main"><span className="row__title">Assistent</span><span className="row__meta"><span>Aufgaben und Notizen per Satz anlegen, Fragen zum Plan</span></span></span>
+            <Icon name="chevron-right" size={18} />
+          </button>
+        </li>
         <li>
           <Link to="/notes" className="row row--link">
             <Icon name="note" size={20} />

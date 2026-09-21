@@ -2,8 +2,10 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions, getPersonal } from '../store';
 import { buildAIContext, buildAIDynamicContext } from './context';
 import { executeAction, resolveSubject, runConfirmed, toolSpecs, validateAction } from './actions';
+import { geminiProvider, parseCompletion, toOpenAITools } from './gemini';
 import { parseIntent } from './mock';
-import { mockAI } from './service';
+import type { AIProvider, AIRequest } from './provider';
+import { AIService, mockAI } from './service';
 
 // Monday of KW 39 – the same reference day the rest of the suite uses.
 const NOW = new Date(2026, 8, 21, 9, 0);
@@ -153,6 +155,12 @@ describe('the whole chain, end to end', () => {
     expect(buildAIDynamicContext().counts.openTasks).toBe(before);
   });
 
+  it('finds a task by a fragment of its title', async () => {
+    const id = actions.addTodo({ courseId: 'analysis-1', text: 'Kapitel 3 Übungen 1–10 durchrechnen' });
+    const turn = await mockAI('Lösch die Aufgabe Kapitel 3', () => NOW);
+    expect(turn.pending[0]?.call).toEqual({ action: 'delete_task', params: { id } });
+  });
+
   it('holds a delete back until it is confirmed', async () => {
     actions.addMemo({ courseId: 'informatik-1', title: 'Pointer', body: 'Sternchen nicht vergessen' });
     const turn = await mockAI('Lösch die Notiz Pointer', () => NOW);
@@ -171,5 +179,75 @@ describe('the whole chain, end to end', () => {
     const data = turn.performed[0].data as { title: string }[];
     expect(data.some((t) => t.title === 'Laborbericht')).toBe(true);
     expect(Object.keys(getPersonal().synced.todos)).toHaveLength(1); // nothing added or removed
+  });
+});
+
+describe('Gemini provider (Google simulated, no real key)', () => {
+  const reply = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+  const req = (): AIRequest => ({
+    messages: [{ role: 'system', content: 'SYS' }, { role: 'user', content: 'Neue Aufgabe' }],
+    contextText: 'CTX',
+    tools: toolSpecs(),
+  });
+
+  it('sends the key as a header to Google only, with the live context and the tool list', async () => {
+    const fetchMock = vi.fn(async () => reply({ choices: [{ message: { content: 'Ok.' } }] }));
+    vi.stubGlobal('fetch', fetchMock);
+    await geminiProvider('AIzaTEST').complete(req());
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
+    expect(url).not.toContain('AIza');
+    expect((init.headers as Record<string, string>).Authorization).toBe('Bearer AIzaTEST');
+    const body = JSON.parse(init.body as string);
+    expect(body.messages.map((m: { role: string; content: string }) => m.content.slice(0, 7))).toEqual(['SYS', 'Aktuell', 'Neue Au']);
+    expect(body.tools.some((t: { function: { name: string } }) => t.function.name === 'create_task')).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('turns tool calls into app actions and tells a rejected key apart from an empty quota', async () => {
+    expect(parseCompletion({ choices: [{ message: { content: null, tool_calls: [{ function: { name: 'create_task', arguments: '{"title":"X"}' } }] } }] }))
+      .toEqual({ text: '', calls: [{ action: 'create_task', params: { title: 'X' } }] });
+    vi.stubGlobal('fetch', vi.fn(async () => reply({}, 400)));
+    await expect(geminiProvider('AIzaBAD').complete(req())).rejects.toThrow(/Schlüssel/);
+    vi.stubGlobal('fetch', vi.fn(async () => reply({}, 429)));
+    await expect(geminiProvider('AIzaX').complete(req())).rejects.toThrow(/Kontingent/);
+    vi.unstubAllGlobals();
+  });
+
+  it('switches to a current model by itself when Google retired the default one', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.includes('/models?')) return reply({ models: [{ name: 'models/gemini-9.0-flash', supportedGenerationMethods: ['generateContent'] }] });
+      const model = JSON.parse(init!.body as string).model;
+      return model === 'gemini-9.0-flash' ? reply({ choices: [{ message: { content: 'Hallo' } }] }) : reply({}, 404);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    expect((await geminiProvider('AIzaX').complete(req())).text).toBe('Hallo');
+    vi.unstubAllGlobals();
+  });
+
+  it('describes date formats to the model so it sends values the validator accepts', () => {
+    const create = toOpenAITools(toolSpecs()).find((t) => t.function.name === 'create_task')!;
+    expect(create.function.parameters.required).toEqual(['title']);
+    expect(JSON.stringify(create.function.parameters.properties)).toMatch(/JJJJ-MM-TT/);
+  });
+});
+
+describe('answering after a lookup', () => {
+  it('asks the model again with the results when it only looked something up', async () => {
+    let round = 0;
+    const provider: AIProvider = {
+      id: 'fake',
+      label: 'fake',
+      async complete(r) {
+        round++;
+        if (round === 1) return { text: '', calls: [{ action: 'get_tasks', params: {} }] };
+        expect(r.tools).toHaveLength(0); // second round may only answer, not act
+        expect(r.messages.at(-1)!.content).toMatch(/Ergebnisse/);
+        return { text: 'Du hast 4 offene Aufgaben.', calls: [] };
+      },
+    };
+    const turn = await new AIService(provider).send('Was ist offen?');
+    expect(round).toBe(2);
+    expect(turn.reply).toBe('Du hast 4 offene Aufgaben.');
   });
 });

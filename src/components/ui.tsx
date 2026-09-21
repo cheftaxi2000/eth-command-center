@@ -6,7 +6,7 @@ export const cvar = (color: string) => ({ '--c': color }) as CSSProperties;
 export type IconName =
   | 'today' | 'week' | 'tasks' | 'courses' | 'search' | 'link' | 'settings' | 'person' | 'pin'
   | 'chevron-right' | 'chevron-left' | 'chevron-down' | 'check' | 'plus' | 'external' | 'close'
-  | 'trash' | 'copy' | 'flag' | 'note' | 'cloud' | 'cloud-off' | 'alert' | 'keyboard' | 'calendar';
+  | 'trash' | 'copy' | 'flag' | 'note' | 'cloud' | 'cloud-off' | 'alert' | 'keyboard' | 'calendar' | 'spark' | 'send';
 
 const PATHS: Record<IconName, ReactNode> = {
   today: (<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>),
@@ -33,6 +33,8 @@ const PATHS: Record<IconName, ReactNode> = {
   cloud: (<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" />),
   'cloud-off': (<><path d="m2 2 20 20" /><path d="M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.2M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10.2 5.1" /></>),
   alert: (<><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></>),
+  spark: (<><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z" /><path d="M19 15.5l.8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z" /></>),
+  send: (<><path d="M22 2 11 13" /><path d="m22 2-7 20-4-9-9-4z" /></>),
   keyboard: (<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10" /></>),
 };
 

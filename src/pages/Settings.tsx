@@ -11,6 +11,8 @@ import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
 import { getSyncConfig, joinSync, newSyncCode, syncNow, switchToSharedCode, useSyncStatus } from '../lib/sync';
 import { toLocalDate } from '../lib/time';
+import { createAIService } from '../lib/ai';
+import { maskKey, setAIKey, useAIKey } from '../lib/ai/key';
 
 export function SettingsPage() {
   useTitle('Einstellungen');
@@ -60,6 +62,8 @@ export function SettingsPage() {
       </header>
 
       <SyncSection />
+
+      <AISection />
 
       <section>
         <h2 className="h-section spaced">Darstellung</h2>
@@ -241,6 +245,82 @@ function SyncSection() {
             <button type="submit" className="btn" disabled={busy || !joinCode.trim()}>{busy ? 'Koppele …' : 'Koppeln'}</button>
           </div>
         </form>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The Gemini key is typed in here, once per browser. It stays in this browser's localStorage only –
+ * never synced (the sync store is public), never in a backup, never in the app's code.
+ */
+function AISection() {
+  const key = useAIKey();
+  const [draft, setDraft] = useState('');
+  const [state, setState] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const save = (e: FormEvent) => {
+    e.preventDefault();
+    const v = draft.trim();
+    if (!v) return;
+    setAIKey(v);
+    setDraft('');
+    setState(null);
+    void test();
+  };
+
+  const test = async () => {
+    setBusy(true);
+    setState(null);
+    try {
+      const turn = await createAIService().send('Antworte nur mit dem Satz: Verbindung steht.');
+      setState({ tone: 'ok', text: turn.reply ? `Gemini antwortet: „${turn.reply.slice(0, 80)}"` : 'Gemini ist erreichbar.' });
+    } catch (err) {
+      setState({ tone: 'error', text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section id="ai" className="scroll-target">
+      <h2 className="h-section spaced">Assistent (Gemini)</h2>
+      <div className="panel panel--pad">
+        {key ? (
+          <>
+            <p className="sync-state">
+              <Icon name="spark" size={20} />
+              <span><strong>Schlüssel gespeichert</strong> · {maskKey(key)}</span>
+            </p>
+            {state && <p className={state.tone === 'error' ? 'form-error' : 'hint'}>{state.text}</p>}
+            <div className="btn-row">
+              <button type="button" className="btn" onClick={() => void test()} disabled={busy}>{busy ? 'Teste …' : 'Verbindung testen'}</button>
+              <button type="button" className="btn btn--quiet-danger" onClick={() => { setAIKey(null); setState(null); }}>Schlüssel entfernen</button>
+            </div>
+          </>
+        ) : (
+          <form className="form" onSubmit={save}>
+            <p className="hint hint--top">
+              Ohne Schlüssel versteht der Assistent nur einfache Sätze. Mit einem kostenlosen Gemini-Schlüssel
+              (<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">hier erzeugen</a>) versteht er alles.
+            </p>
+            <label className="field">
+              <span>Gemini-API-Schlüssel</span>
+              <input type="password" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="AIza…"
+                autoComplete="off" autoCapitalize="off" autoCorrect="off" spellCheck={false} />
+            </label>
+            {state && <p className="form-error">{state.text}</p>}
+            <div className="btn-row">
+              <button type="submit" className="btn btn--primary" disabled={!draft.trim()}>Speichern</button>
+            </div>
+          </form>
+        )}
+        <p className="hint">
+          Der Schlüssel bleibt nur in diesem Browser – er wird nicht synchronisiert und steht nirgends im Code.
+          Auf jedem weiteren Gerät einmal eintragen. Hinweis: Im Gratis-Tarif darf Google Eingaben zur Verbesserung
+          seiner Dienste verwenden – der Assistent sieht deine Aufgaben, Notizen und den Stundenplan.
+        </p>
       </div>
     </section>
   );
