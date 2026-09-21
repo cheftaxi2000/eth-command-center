@@ -35,6 +35,9 @@ const BUILD_TIME = `${stamp.getFullYear()}-${pad(stamp.getMonth() + 1)}-${pad(st
 export default defineConfig({
   base: './',
   define: { __BUILD_TIME__: JSON.stringify(BUILD_TIME) },
+  // Tiny font subsets would otherwise be inlined as data: URLs, which the CSP (font-src 'self') blocks.
+  // As files they load normally and are precached for offline use like the rest.
+  build: { assetsInlineLimit: (file: string) => (file.endsWith('.woff2') ? false : undefined) },
   plugins: [
     react(),
     csp(),
