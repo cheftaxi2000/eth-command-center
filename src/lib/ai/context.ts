@@ -1,8 +1,9 @@
 import { COURSES, buildItems, targetOf } from '../data';
 import { getNow } from '../now';
-import { KIND_LABEL, occurrencesOn } from '../schedule';
+import { KIND_LABEL, freeSlots, occurrencesOn } from '../schedule';
 import { GENERAL_ID } from '../state';
 import { getPersonal } from '../store';
+import { endsAt, getTimer, weekStats } from '../timer';
 import { DAY_LONG, addDays, daysBetween, isoWeek, toLocalDate, toLocalISO } from '../time';
 
 /**
@@ -67,6 +68,8 @@ export interface AIScheduleDay {
   weekday: string;
   isoWeek: number;
   sessions: { subject: string; subjectId: string; kind: string; start: string; end: string; room: string; uncertain?: string }[];
+  /** Gaps of 45+ minutes between 08:00 and 18:00 (for today: from now on) – where studying fits. */
+  free: string[];
 }
 
 export interface AIPermanentContext {
@@ -87,6 +90,8 @@ export interface AIDynamicContext {
   tasks: AITask[];
   notes: AINote[];
   schedule: AIScheduleDay[];
+  /** Focus-timer time studied this ISO week, and a block running right now (if any). */
+  study: { weekMinutes: number; bySubject: { subject: string; minutes: number }[]; running: { subject: string; endsAt: string } | null };
 }
 
 export interface AIContext {
@@ -174,8 +179,8 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
       updatedAt: toLocalDate(new Date(m.updatedAt)),
     }));
 
+  // Weekends included: no lectures, but that is exactly when a lot of studying happens.
   const schedule: AIScheduleDay[] = Array.from({ length: horizon }, (_, d) => addDays(now, d))
-    .filter((day) => day.getDay() >= 1 && day.getDay() <= 5)
     .map((day) => ({
       date: toLocalDate(day),
       weekday: DAY_LONG[day.getDay()],
@@ -189,7 +194,16 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
         room: o.session.room,
         ...(o.flag ? { uncertain: o.flag } : {}),
       })),
+      free: freeSlots(day, COURSES, synced.prefs, { notBefore: now }).map((f) => `${f.start}–${f.end}`),
     }));
+
+  const stats = weekStats(Object.values(synced.study), now);
+  const running = getTimer();
+  const study = {
+    weekMinutes: stats.total,
+    bySubject: stats.byCourse.map((c) => ({ subject: targetOf(c.courseId).name, minutes: c.minutes })),
+    running: running ? { subject: targetOf(running.courseId).name, endsAt: toLocalISO(new Date(endsAt(running))).slice(11) } : null,
+  };
 
   const open = tasks.filter((t) => t.status === 'open');
   return {
@@ -203,6 +217,7 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
     tasks,
     notes,
     schedule,
+    study,
   };
 }
 
@@ -242,9 +257,13 @@ export function formatAIContext(ctx: AIContext): string {
 
   lines.push('', '## Stundenplan');
   for (const day of d.schedule) {
-    if (day.sessions.length === 0) continue;
-    lines.push(`- ${day.weekday} ${day.date}: ${day.sessions.map((s) => `${s.start}–${s.end} ${s.subject} (${s.kind}, ${s.room})`).join(' | ')}`);
+    const busy = day.sessions.length ? day.sessions.map((s) => `${s.start}–${s.end} ${s.subject} (${s.kind}, ${s.room})`).join(' | ') : 'keine Veranstaltungen';
+    lines.push(`- ${day.weekday} ${day.date}: ${busy}${day.free.length ? ` · frei: ${day.free.join(', ')}` : ''}`);
   }
+
+  lines.push('', `## Lernzeit diese Woche: ${d.study.weekMinutes} min`);
+  for (const s of d.study.bySubject) lines.push(`- ${s.subject}: ${s.minutes} min`);
+  if (d.study.running) lines.push(`- Läuft gerade: Lernblock ${d.study.running.subject} bis ${d.study.running.endsAt}`);
 
   lines.push('', '## Grenzen');
   for (const c of p.constraints) lines.push(`- ${c}`);

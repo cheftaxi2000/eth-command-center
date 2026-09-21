@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { Assistant } from './components/Assistant';
+import { StudyTimerHost } from './components/StudyTimer';
 import { EditorSheet } from './components/EditorSheet';
 import { MemoSheet } from './components/MemoSheet';
 import { AiFab, Fab, SideNav, TabBar } from './components/Nav';
@@ -57,6 +58,7 @@ function Shell({ children }: { children: ReactNode }) {
       <EditorSheet />
       <MemoSheet />
       <Assistant />
+      <StudyTimerHost />
       <ShortcutsSheet />
       <Toasts />
     </div>

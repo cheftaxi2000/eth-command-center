@@ -37,6 +37,16 @@ export interface Memo {
   updatedAt: number;
 }
 
+/** One finished focus session from the study timer (only finished ones are stored and synced). */
+export interface StudySession {
+  id: string;
+  courseId: string;
+  /** ms timestamp when it started */
+  start: number;
+  minutes: number;
+  updatedAt: number;
+}
+
 /** Local check-off of a (read-only) Notion task */
 export interface Override {
   done: boolean;
@@ -57,6 +67,7 @@ export interface SyncedState {
   todos: Record<string, Todo>;
   exams: Record<string, Exam>;
   memos: Record<string, Memo>;
+  study: Record<string, StudySession>;
   taskDone: Record<string, Override>;
   prefs: Prefs;
   /** id -> deletion time, so a deletion is not undone by another device's older copy */
@@ -82,6 +93,7 @@ export const emptySynced = (): SyncedState => ({
   todos: {},
   exams: {},
   memos: {},
+  study: {},
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
   // but a real schedule detail the student told us; still overridable in Settings.
@@ -121,6 +133,7 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
     todos: mergeRecords(a.todos, b.todos, tombstones),
     exams: mergeRecords(a.exams, b.exams, tombstones),
     memos: mergeRecords(a.memos, b.memos, tombstones),
+    study: mergeRecords(a.study, b.study, tombstones),
     taskDone: mergeRecords(a.taskDone, b.taskDone, {}),
     prefs: b.prefs.updatedAt > a.prefs.updatedAt ? b.prefs : a.prefs,
     tombstones,
@@ -144,6 +157,7 @@ export function normalizeSynced(raw: unknown): SyncedState {
     todos: pick<Todo>(raw.todos, (t) => typeof t.id === 'string' && typeof t.text === 'string' && typeof t.updatedAt === 'number'),
     exams: pick<Exam>(raw.exams, (e) => typeof e.id === 'string' && typeof e.when === 'string' && typeof e.updatedAt === 'number'),
     memos: pick<Memo>(raw.memos, (m) => typeof m.id === 'string' && typeof m.body === 'string' && typeof m.updatedAt === 'number'),
+    study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {
       biweeklyParity: prefs.biweeklyParity === 'odd' || prefs.biweeklyParity === 'even' ? prefs.biweeklyParity : base.prefs.biweeklyParity,

@@ -11,6 +11,8 @@ import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
 import { getSyncConfig, joinSync, newSyncCode, syncNow, switchToSharedCode, useSyncStatus } from '../lib/sync';
 import { toLocalDate } from '../lib/time';
+import { getNow } from '../lib/now';
+import { exportCalendar } from './Week';
 import { createAIService } from '../lib/ai';
 import { maskKey, setAIKey, useAIKey } from '../lib/ai/key';
 
@@ -100,6 +102,13 @@ export function SettingsPage() {
             <button type="button" className="btn" onClick={exportBackup}>Backup herunterladen</button>
             <button type="button" className="btn" onClick={() => fileRef.current?.click()}>Backup einlesen</button>
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => { void importBackup(e.target.files?.[0]); e.target.value = ''; }} />
+          </div>
+          <p className="hint">
+            Kalender: Stundenplan der nächsten 8 Wochen plus alle offenen Abgaben und Prüfungen als .ics-Datei – mit Erinnerungen
+            am Vortag, damit dich dein iPad- oder Outlook-Kalender rechtzeitig warnt.
+          </p>
+          <div className="btn-row">
+            <button type="button" className="btn" onClick={() => exportCalendar(getNow())}><Icon name="calendar" size={18} />Kalender exportieren (.ics)</button>
           </div>
         </div>
       </section>

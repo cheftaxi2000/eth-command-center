@@ -1,6 +1,6 @@
 import type { Course, Session, SessionKind } from '../types';
 import type { Prefs } from './state';
-import { addDays, isoWeek, startOfDay, toLocalDate, withTime } from './time';
+import { addDays, isoWeek, minutesOf, startOfDay, toLocalDate, withTime } from './time';
 
 export const KIND_LABEL = { lecture: 'Vorlesung', exercise: 'Übung' } as const;
 
@@ -95,4 +95,39 @@ export function suggestCourse(now: Date, courses: Course[], prefs: SchedulePrefs
   if (live) return live.course.id;
   const recent = [...today].reverse().find((o) => +o.end <= +now && +now - +o.end < 90 * 60_000);
   return recent?.course.id ?? fallback;
+}
+
+const hhmm = (min: number) => `${String(Math.floor(min / 60)).padStart(2, '0')}:${String(min % 60).padStart(2, '0')}`;
+
+export interface FreeSlot {
+  start: string;
+  end: string;
+  minutes: number;
+}
+
+/**
+ * Gaps of at least `minMinutes` between `from` and `to` on a day, around the student's own
+ * sessions (uncertain ones count as busy – better to under-promise free time). With `notBefore`
+ * (e.g. now, for today) nothing in the past is offered.
+ */
+export function freeSlots(
+  date: Date,
+  courses: Course[],
+  prefs: SchedulePrefs,
+  { from = '08:00', to = '18:00', minMinutes = 45, notBefore }: { from?: string; to?: string; minMinutes?: number; notBefore?: Date } = {},
+): FreeSlot[] {
+  let cursor = minutesOf(from);
+  if (notBefore && startOfDay(notBefore).getTime() === startOfDay(date).getTime()) {
+    cursor = Math.max(cursor, Math.ceil((notBefore.getHours() * 60 + notBefore.getMinutes()) / 5) * 5);
+  }
+  const end = minutesOf(to);
+  const out: FreeSlot[] = [];
+  const push = (a: number, b: number) => b - a >= minMinutes && out.push({ start: hhmm(a), end: hhmm(b), minutes: b - a });
+  for (const o of occurrencesOn(date, courses, prefs)) {
+    const s = Math.max(minutesOf(o.session.start), cursor);
+    push(cursor, Math.min(s, end));
+    cursor = Math.max(cursor, minutesOf(o.session.end));
+  }
+  push(cursor, end);
+  return out;
 }

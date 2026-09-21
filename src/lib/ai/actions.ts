@@ -3,6 +3,7 @@ import { getNow } from '../now';
 import { GENERAL_ID } from '../state';
 import { actions as store, getPersonal } from '../store';
 import { dueMoment, fmtDateShort, fmtTime, isAllDay, toLocalDate } from '../time';
+import { endsAt, fmtMinutes, getTimer, startTimer, stopTimer, weekStats } from '../timer';
 import { buildAIDynamicContext, buildAIPermanentContext } from './context';
 
 /**
@@ -358,6 +359,52 @@ export const ACTIONS: Record<string, ActionDef> = {
       if (!memo) return fail('delete_note', `Es gibt keine Notiz mit der Id "${id}".`);
       store.deleteMemo(id);
       return { ok: true, action: 'delete_note', message: `Notiz „${memo.title}" gelöscht.`, data: { id } };
+    },
+  },
+
+  start_study_timer: {
+    name: 'start_study_timer',
+    description: 'Startet einen Lernblock (Fokus-Timer) für ein Fach. Ein laufender Block wird vorher beendet und gespeichert.',
+    params: {
+      subject: { type: 'subject', description: 'Fach', required: true },
+      minutes: { type: 'integer', description: 'Dauer in Minuten (Standard 25, höchstens 180)' },
+    },
+    run: (p) => {
+      const t = startTimer(p.subject as string, typeof p.minutes === 'number' ? p.minutes : 25);
+      const until = new Date(endsAt(t));
+      return { ok: true, action: 'start_study_timer', message: `Lernblock gestartet: ${fmtMinutes(t.minutes)} ${subjectName(t.courseId)}, bis ${fmtTime(until)}.` };
+    },
+  },
+
+  stop_study_timer: {
+    name: 'stop_study_timer',
+    description: 'Beendet den laufenden Lernblock vorzeitig und speichert die gelernte Zeit (ab 5 Minuten).',
+    params: {},
+    run: () => {
+      if (!getTimer()) return fail('stop_study_timer', 'Es läuft gerade kein Lernblock.');
+      const m = stopTimer();
+      return { ok: true, action: 'stop_study_timer', message: m ? `Lernblock beendet – ${fmtMinutes(m)} gespeichert.` : 'Lernblock beendet (unter 5 Minuten, nicht gezählt).' };
+    },
+  },
+
+  get_study_stats: {
+    name: 'get_study_stats',
+    description: 'Wie viel diese Woche gelernt wurde, gesamt und pro Fach, und ob gerade ein Lernblock läuft.',
+    params: {},
+    readOnly: true,
+    run: () => {
+      const s = weekStats(Object.values(getPersonal().synced.study), getNow());
+      const running = getTimer();
+      return {
+        ok: true,
+        action: 'get_study_stats',
+        message: `Diese Woche ${fmtMinutes(s.total)} gelernt.`,
+        data: {
+          weekTotal: fmtMinutes(s.total),
+          bySubject: s.byCourse.map((c) => ({ subject: subjectName(c.courseId), minutes: c.minutes })),
+          running: running ? { subject: subjectName(running.courseId), endsAt: fmtTime(new Date(endsAt(running))) } : null,
+        },
+      };
     },
   },
 

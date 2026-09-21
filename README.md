@@ -10,7 +10,10 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
 - **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene (nicht nur die nächsten 7 Tage) und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
 - **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
-- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `C` Assistent, `S` synchronisieren, `?` zeigt alles
+- **Assistent** – Vollbild-Chat (`C`), versteht Sätze wie „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2“, antwortet aus deinen echten Daten, **Mikrofon** zum Diktieren (siehe unten)
+- **Lernzeit** – Fokus-Timer 25/50 min pro Fach (Kursseite, „Heute“, Taste `T` oder per Assistent), Wochenbilanz pro Fach auf „Heute“
+- **Kalender-Export** – Stundenplan der nächsten 8 Wochen + alle offenen Abgaben als .ics, mit Erinnerungen am Vortag (Wochenplan → „In Kalender“)
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
 - **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
 
 ## Notion bleibt unverändert (read-only)
@@ -68,8 +71,15 @@ Offline erfasste Änderungen werden automatisch nachgeholt, sobald wieder eine V
 
 ## AI-Assistent
 
-**Öffnen:** Taste `C`, „Assistent" in der Seitenleiste oder auf dem iPad unter *Kurse → Mehr*. Schreib
-z. B. „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2" oder „Was muss ich diese Woche noch machen?".
+**Öffnen:** Taste `C`, „Assistent" in der Seitenleiste oder auf iPad/Handy der runde Funken-Knopf über dem „+".
+Er übernimmt den ganzen Bildschirm, formatiert Antworten (Listen, fett, Code) und behält den Verlauf auf diesem
+Gerät („Neuer Chat" leert ihn). Schreib z. B. „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2",
+„Ich habe morgen zwei Stunden Zeit – was soll ich lernen?" (er kennt deine freien Lücken) oder „Starte 25 Minuten Analysis".
+
+**Mikrofon:** Mikro-Knopf in der Eingabe → sprechen → der Text erscheint live im Feld, du prüfst und schickst ab.
+Chrome, Edge und Safari erkennen die Sprache selbst (Schweizer Hochdeutsch, sonst Hochdeutsch). Wo der Browser das
+nicht kann (z. B. Firefox), nimmt die App auf und lässt Gemini umschreiben – dafür braucht es den Schlüssel. Beim ersten
+Mal fragt der Browser nach der Mikrofon-Erlaubnis.
 
 **Gemini einschalten:** *Einstellungen → Assistent (Gemini)* → kostenlosen Schlüssel von
 [Google AI Studio](https://aistudio.google.com/apikey) einfügen → Speichern (testet die Verbindung gleich mit).
@@ -116,7 +126,11 @@ src/
   lib/state.ts        eigenes Datenmodell, Merge (last-writer-wins + Löschmarken), v1-Migration
   lib/store.ts        zentraler Zustand + Aktionen – die einzige Schreibstelle der App
   lib/sync.ts         automatischer Sync über kvdb.io (fest eingebauter Sync-Code, kein Token)
-  lib/ai/             Assistent: Context, Actions, Gemini, lokaler Schlüssel, Regel-Modus
+  lib/ai/             Assistent: Context, Actions, Gemini, lokaler Schlüssel, Regel-Modus, Chat-Verlauf
+  lib/voice.ts        Diktieren (Web Speech API, sonst Aufnahme → WAV → Gemini)
+  lib/markdown.ts     sicherer Markdown-Parser für Antworten (kein innerHTML)
+  lib/timer.ts        Lern-Timer und Wochenbilanz
+  lib/ics.ts          Kalender-Export mit Erinnerungen
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag
   lib/data.ts         Fristen & To-dos als eine Liste
   lib/search.ts       Suche, Fach-Erkennung für Schnellerfassung

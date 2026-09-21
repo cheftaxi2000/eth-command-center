@@ -128,14 +128,14 @@
 .todo-group__name .icon { color: var(--ink-3); }
 
 /* ---------- home ---------- */
-.dash { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'due' 'todos'; }
+.dash { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'due' 'study' 'todos'; }
 .dash > section { margin: 0; }
 .dash__today { grid-area: today; }
 .dash__due { grid-area: due; }
 .dash__todos { grid-area: todos; }
 /* Two columns only when there is really room for them; to-dos then use the full width */
 @container page (min-width: 800px) {
-  .dash { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); grid-template-areas: 'today due' 'todos todos'; align-items: start; column-gap: 32px; }
+  .dash { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); grid-template-areas: 'today due' 'study due' 'todos todos'; align-items: start; column-gap: 32px; }
 }
 @container page (min-width: 860px) {
   .todo-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
@@ -395,3 +395,26 @@
   .asst__welcome h1 { font-size: 1.5rem; }
   .msg { gap: 10px; }
 }
+
+/* ---------- study timer ---------- */
+/* bottom-left on touch layouts (the round buttons are on the right), bottom-right on desktop – never where toasts appear */
+.timer-pill { position: fixed; z-index: 40; left: max(16px, env(safe-area-inset-left)); bottom: calc(var(--tabbar-h) + 26px + var(--safe-b)); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 16px; border-radius: 26px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); font-size: 0.9375rem; }
+.timer-pill .dot { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 40%, transparent); }
+.timer-pill__name { font-weight: 550; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.timer-pill__time { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2em; }
+.timer-pill__stop { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 18%, transparent); color: var(--bg); }
+@media (min-width: 1024px) { .timer-pill { left: auto; right: 28px; bottom: 28px; } }
+.study-start { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+.study-start__live { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.study-start__pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--ok); animation: rec 1.4s infinite; }
+.dash__study { grid-area: study; }
+.study__total { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+.study__total strong { font-size: 1.5rem; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.study__total span { color: var(--ink-3); font-size: 0.9375rem; }
+.study__bar { display: flex; gap: 2px; height: 8px; margin-top: 12px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+.study__bar > span { background: var(--c); min-width: 4px; }
+.study__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: 0.875rem; color: var(--ink-2); }
+.study__legend li { display: inline-flex; align-items: center; gap: 7px; }
+.study__legend span { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.study__start { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.study__start .btn-row { margin-top: 8px; }

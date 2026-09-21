@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CourseSwitcher } from '../components/course';
+import { StudyWeek } from '../components/StudyTimer';
 import { ItemRow, SessionRow, TodoComposer, TodoGroups } from '../components/rows';
 import { Empty, Icon, RoomLink, SectionHead } from '../components/ui';
 import { seed } from '../data/seed';
@@ -62,6 +63,8 @@ export function TodayPage() {
             </div>
           )}
         </section>
+
+        <StudyWeek />
 
         <section className="dash__due" aria-labelledby="h-due">
           <SectionHead id="h-due" title="Fällig" action={<Link className="more" to="/tasks">Alle<Icon name="chevron-right" size={16} /></Link>} />

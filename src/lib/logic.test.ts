@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { seed } from '../data/seed';
 import { backlog, buildItems, dueWithin } from './data';
 import { parseRoom, roomUrl } from './rooms';
-import { focusOfDay, nextOccurrence, occurrencesInWeek, occurrencesOn, suggestCourse } from './schedule';
+import { focusOfDay, freeSlots, nextOccurrence, occurrencesInWeek, occurrencesOn, suggestCourse } from './schedule';
 import { createSearch, detectCourse, groupHits } from './search';
 import { canonical, emptySynced, mergeSynced, migrateV1, normalizeSynced, type Memo, type SyncedState, type Todo } from './state';
 import { syncOnce, type SyncApi } from './sync';
@@ -76,6 +76,14 @@ describe('schedule', () => {
     // The alternatives are hidden rather than offered
     expect(occurrencesOn(at('2026-09-22'), seed.courses, prefs).some((o) => o.session.id === 'mech-u-di')).toBe(false);
     expect(thu.some((o) => o.session.id === 'mech-u-do2')).toBe(false);
+  });
+  it('finds the free study slots between sessions', () => {
+    const tue = at('2026-09-22');
+    expect(freeSlots(tue, seed.courses, prefs).map((f) => `${f.start}–${f.end}`)).toEqual(['12:00–14:15', '16:00–18:00']);
+    // later the same day nothing in the past is offered, and the start is rounded to 5 minutes
+    expect(freeSlots(tue, seed.courses, prefs, { notBefore: at('2026-09-22T13:02') })[0]).toEqual({ start: '13:05', end: '14:15', minutes: 70 });
+    // a free Saturday is one long slot
+    expect(freeSlots(at('2026-09-26'), seed.courses, prefs)).toEqual([{ start: '08:00', end: '18:00', minutes: 600 }]);
   });
   it('fills the group default into older stored data that predates it', () => {
     const old = normalizeSynced({ v: 2, prefs: { biweeklyParity: 'even', choices: {}, updatedAt: 5 } });

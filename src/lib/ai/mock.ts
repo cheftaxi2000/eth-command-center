@@ -156,6 +156,17 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
       : { reply: 'Ich finde keine passende offene Aufgabe.', calls: [] };
   }
 
+  // --- focus timer ---
+  if (/\b(lerntimer|timer|lernblock|fokus)\b/.test(t) || (/\bstart/.test(t) && /\d+\s*min/.test(t))) {
+    if (/\b(stopp\w*|stop|beend\w*|abbrechen|aufhören)\b/.test(t)) return { reply: 'Ich beende den Lernblock.', calls: [{ action: 'stop_study_timer', params: {} }] };
+    if (!subject) return { reply: 'Für welches Fach soll ich den Lernblock starten?', calls: [] };
+    const min = t.match(/(\d{1,3})\s*(min|minuten)\b/)?.[1];
+    return { reply: 'Los geht\'s.', calls: [{ action: 'start_study_timer', params: { subject, ...(min ? { minutes: Number(min) } : {}) } }] };
+  }
+  if (/\bwie (viel|lange)\b.*\bgelernt\b|\blernzeit\b/.test(t)) {
+    return { reply: 'Deine Lernzeit:', calls: [{ action: 'get_study_stats', params: {} }] };
+  }
+
   // --- move / change a deadline ---
   if (/\b(verschieb|schieb|ändere|aendere|verleg)/.test(t)) {
     const hit = findTasks(text, subject)[0];

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import {
   canonical, defaultLocal, emptySynced, mergeSynced, migrateV1, normalizeSynced, uid,
-  type Exam, type LocalState, type Memo, type SyncedState, type Todo,
+  type Exam, type LocalState, type Memo, type StudySession, type SyncedState, type Todo,
 } from './state';
 
 /**
@@ -98,7 +98,7 @@ const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state,
 const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
 const now = () => Date.now();
 
-type RecordKind = 'todos' | 'exams' | 'memos';
+type RecordKind = 'todos' | 'exams' | 'memos' | 'study';
 
 function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
   updateSynced((s) => {
@@ -217,6 +217,18 @@ export const actions = {
   },
   restoreMemo(memo: Memo) {
     put('memos', { ...memo, updatedAt: now() });
+  },
+
+  /** A finished focus session (see lib/timer.ts) – synced like everything else. */
+  logStudy(input: { courseId: string; start: number; minutes: number }): string {
+    const id = uid('study');
+    put('study', { id, courseId: input.courseId, start: input.start, minutes: Math.round(input.minutes), updatedAt: now() });
+    return id;
+  },
+  deleteStudy(id: string): StudySession | undefined {
+    const cur = state.synced.study[id];
+    remove('study', [id]);
+    return cur;
   },
 
   /** Deletes all own to-dos, exams and notes – on every synced device */

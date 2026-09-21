@@ -2,7 +2,12 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { COURSES } from '../lib/data';
 import { MOD_KEY, isTypingTarget } from '../lib/hooks';
+import { suggestCourse } from '../lib/schedule';
+import { getPersonal } from '../lib/store';
 import { syncNow } from '../lib/sync';
+import { getNow } from '../lib/now';
+import { getTimer } from '../lib/timer';
+import { startStudy, stopStudy } from './StudyTimer';
 import { useCurrentCourseId } from './Nav';
 import { toast } from './toast';
 import { Sheet } from './ui';
@@ -45,6 +50,13 @@ export function useGlobalShortcuts() {
       else if (key === 'm') ui.openMemoEditor({ mode: 'new', courseId });
       else if (key === 'p') ui.openEditor({ mode: 'new', kind: 'exam', courseId });
       else if (key === 'c') ui.setAssistantOpen(true);
+      else if (key === 't') {
+        if (getTimer()) stopStudy();
+        else {
+          const { synced, local } = getPersonal();
+          startStudy(courseId ?? suggestCourse(getNow(), COURSES, synced.prefs, local.lastCourse ?? COURSES[0].id), 25);
+        }
+      }
       else if (key === 's') {
         void syncNow();
         toast({ text: 'Synchronisiere …' }, 1500);
@@ -79,6 +91,7 @@ const GROUPS: { title: string; list: [string, string][] }[] = [
       ['M', 'Neue Notiz (im aktuellen Kurs)'],
       ['P', 'Neue Prüfung'],
       ['C', 'Assistent (Chat)'],
+      ['T', 'Lernblock 25 min starten / beenden'],
     ],
   },
   {

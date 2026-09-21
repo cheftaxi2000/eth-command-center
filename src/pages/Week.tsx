@@ -7,7 +7,9 @@ import { COURSES, targetOf, useItems, type Item } from '../lib/data';
 import { isTypingTarget, useMediaQuery, useSwipe, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { KIND_LABEL, occurrencesInWeek, type Occurrence } from '../lib/schedule';
-import { usePersonal } from '../lib/store';
+import { buildIcs, downloadIcs } from '../lib/ics';
+import { getPersonal, usePersonal } from '../lib/store';
+import { toast } from '../components/toast';
 import { DAY_SHORT, addDays, daysBetween, fmtDayMonth, fmtTime, isSameDay, isoWeek, minutesOf, startOfDay, startOfWeek } from '../lib/time';
 
 const START = 8 * 60;
@@ -60,6 +62,9 @@ export function WeekPage() {
           <h1>KW {isoWeek(weekStart)} <span className="h1-sub">{fmtDayMonth(days[0])} – {fmtDayMonth(days[4])}</span></h1>
         </div>
         <div className="stepper">
+          <button type="button" className="btn" onClick={() => exportCalendar(now)} title="Stundenplan und Fristen der nächsten 8 Wochen als Kalenderdatei (mit Erinnerungen)">
+            <Icon name="calendar" size={18} />In Kalender
+          </button>
           <button type="button" className="icon-btn" onClick={() => setOffset((o) => o - 1)} aria-label="Vorherige Woche"><Icon name="chevron-left" /></button>
           <button type="button" className="btn" onClick={() => setOffset(0)} disabled={offset === 0}>Aktuell</button>
           <button type="button" className="icon-btn" onClick={() => setOffset((o) => o + 1)} aria-label="Nächste Woche"><Icon name="chevron-right" /></button>
@@ -75,6 +80,12 @@ export function WeekPage() {
       {narrow ? <Agenda days={days} week={week} items={items} now={now} /> : <Timetable days={days} week={week} items={items} now={now} />}
     </div>
   );
+}
+
+/** Timetable + open deadlines of the next 8 weeks as .ics – deadlines come with reminders. */
+export function exportCalendar(now: Date) {
+  downloadIcs(buildIcs({ now, weeks: 8, courses: COURSES, synced: getPersonal().synced }));
+  toast({ text: 'Kalenderdatei erstellt – öffnen und „Alle hinzufügen“ wählen' }, 5000);
 }
 
 function DueLine({ item, compact }: { item: Item; compact?: boolean }) {

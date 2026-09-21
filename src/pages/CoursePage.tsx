@@ -15,6 +15,7 @@ import { actions, usePersonal } from '../lib/store';
 import { DAY_LONG, DAY_SHORT, dueInfo, fmtRelDay, fmtTime } from '../lib/time';
 import type { Session } from '../types';
 import { MemoRow } from './Notes';
+import { StudyStart } from '../components/StudyTimer';
 
 const hostOf = (url: string) => {
   try {
@@ -42,6 +43,11 @@ export function CoursePage() {
     if (course) actions.touchCourse(course.id);
   }, [course]);
 
+  // Hooks before the early return below – otherwise going from an unknown course to a real one
+  // would change the number of hooks between renders.
+  const todos = items.filter((i) => i.courseId === course?.id && i.kind === 'todo');
+  const { items: openTodos, lingering } = useLingerDone(todos);
+
   if (!course) {
     return (
       <>
@@ -52,8 +58,6 @@ export function CoursePage() {
   }
 
   const mine = items.filter((i) => i.courseId === course.id);
-  const todos = mine.filter((i) => i.kind === 'todo');
-  const { items: openTodos, lingering } = useLingerDone(todos);
   const doneTodos = todos.filter((i) => i.done && !lingering.has(i.id));
   const graded = mine.filter((i) => i.kind !== 'todo');
   const next = nextOccurrence(now, [course], synced.prefs);
@@ -74,6 +78,7 @@ export function CoursePage() {
         <h1>{course.name}</h1>
         <p className="course-head__sub">{course.instructor}</p>
         <LinkButtons links={course.links} />
+        <StudyStart courseId={course.id} />
       </header>
 
       <dl className="panel facts">

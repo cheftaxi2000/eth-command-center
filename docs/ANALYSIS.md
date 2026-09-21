@@ -170,6 +170,27 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
   absichtlich falscher Schlüssel gegen den echten Google-Endpunkt → „Gemini lehnt den Schlüssel ab".
   Mit einem gültigen Schlüssel konnte ich nicht testen, der liegt nur beim Nutzer.
 
+## v6 – Assistent als Chatbot, Mikrofon, drei neue Funktionen (2026-09-21)
+- **„Antworten sehen hässlich aus“:** Gemini antwortet in Markdown, das Fenster zeigte `**…**` und `*`-Listen roh.
+  Eigener kleiner Parser (`lib/markdown.ts`) → React-Elemente, nie `innerHTML`; Tests prüfen u. a., dass HTML Text
+  bleibt und nur http(s)-Links klickbar werden.
+- **Vollbild wie ein normaler Chatbot:** eigene Kopfzeile, Antworten ohne Blase mit Avatar, eigene Nachrichten als
+  Blase, Vorschlagskarten, Kopieren, Eingabe-Pille, Verlauf lokal (nicht synchronisiert – der Sync-Speicher ist
+  öffentlich). Die Karte „Neue Aufgabe …“ füllt nur das Feld, damit ein Fehltipp nichts anlegt.
+- **Mikrofon** (Entscheidung Nutzer: Text ins Feld, selbst senden): Web Speech API mit Live-Text, `de-CH` mit
+  Rückfall `de-DE`; ohne Web Speech Aufnahme → 16-kHz-WAV → Gemini-Transkription. Mit simulierter Spracherkennung
+  getestet (Live-Text, Endtext, Stopp); mit echtem Mikrofon nicht testbar in der Automatisierung.
+- **Freie Zeitfenster** (`freeSlots`): Lücken ≥ 45 min zwischen 08 und 18 Uhr, heute erst ab jetzt; gehen in den
+  AI-Kontext, damit „Ich habe zwei Stunden – was soll ich lernen?“ echte Lücken und Fristen nutzt.
+- **Kalender-Export (.ics):** 8 Wochen Stundenplan (mit Parität und Übungsgruppe) + offene Abgaben/Prüfungen,
+  UTC-Zeiten, Faltung nach Bytes, stabile UIDs, Erinnerungen am Vortag (Prüfungen auch 7 Tage vorher) – echte
+  Benachrichtigungen über den Kalender des Geräts, ganz ohne Server.
+- **Lern-Timer:** 25/50 min pro Fach, laufender Timer nur lokal, fertige Blöcke als neuer synchronisierter Typ
+  `study` (Merge + Löschmarken wie der Rest), unter 5 min wird nicht gezählt; Wochenbilanz auf „Heute“, Countdown im
+  Tab-Titel, Ton am Ende; auch per Assistent und Taste `T`.
+- **Nebenbei behoben:** Auf der Kursseite lief ein Hook erst nach einem frühen `return` – Wechsel von einem
+  unbekannten zu einem echten Kurs hätte die Hook-Reihenfolge gebrochen.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
