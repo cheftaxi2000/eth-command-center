@@ -24,8 +24,10 @@ describe('calendar export (.ics)', () => {
 
   it('writes times in UTC, so the calendar shows the right local time', () => {
     const ics = buildIcs({ now, weeks: 1, courses: seed.courses, synced: emptySynced() });
-    // Mon 21.09. 10:15 Zurich (CEST, UTC+2) = 08:15 UTC
-    expect(ics).toContain('DTSTART:20260921T081500Z');
+    // Mechanik Mon 21.09. 10:15 local → the same instant in UTC (in Zurich, CEST: 08:15Z).
+    // Derived instead of hard-coded, so the test holds in any time zone – CI runs in UTC.
+    const expected = new Date(2026, 8, 21, 10, 15).toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    expect(ics).toContain(`DTSTART:${expected}`);
   });
 
   it('exports an own all-day to-do as an all-day event, done ones not at all', () => {
