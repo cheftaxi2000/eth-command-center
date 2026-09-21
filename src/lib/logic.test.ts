@@ -67,6 +67,23 @@ describe('schedule', () => {
     const chosen = { ...prefs, choices: { 'mechanik-uebung': 'mech-u-do1' } };
     expect(occurrencesOn(at('2026-09-22'), seed.courses, chosen).some((o) => o.session.id === 'mech-u-di')).toBe(false);
   });
+  it('knows the Mechanik exercise group by default, so nothing asks for it again', () => {
+    // The student confirmed Thursday 08:15 – it is a default, not a guess, and not flagged.
+    expect(prefs.choices['mechanik-uebung']).toBe('mech-u-do1');
+    const thu = occurrencesOn(at('2026-09-24'), seed.courses, prefs);
+    expect(thu.map((o) => o.session.id)).toContain('mech-u-do1');
+    expect(thu.every((o) => o.flag === undefined)).toBe(true);
+    // The alternatives are hidden rather than offered
+    expect(occurrencesOn(at('2026-09-22'), seed.courses, prefs).some((o) => o.session.id === 'mech-u-di')).toBe(false);
+    expect(thu.some((o) => o.session.id === 'mech-u-do2')).toBe(false);
+  });
+  it('fills the group default into older stored data that predates it', () => {
+    const old = normalizeSynced({ v: 2, prefs: { biweeklyParity: 'even', choices: {}, updatedAt: 5 } });
+    expect(old.prefs.choices['mechanik-uebung']).toBe('mech-u-do1');
+    // …but a different explicit choice still wins
+    const other = normalizeSynced({ v: 2, prefs: { choices: { 'mechanik-uebung': 'mech-u-di' }, updatedAt: 5 } });
+    expect(other.prefs.choices['mechanik-uebung']).toBe('mech-u-di');
+  });
   it('has no overlapping sessions in a normal week', () => {
     const chosen = { biweeklyParity: 'odd' as const, choices: { 'mechanik-uebung': 'mech-u-do1' } };
     for (const day of occurrencesInWeek(at('2026-09-21'), seed.courses, chosen)) {

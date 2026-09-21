@@ -70,6 +70,13 @@ export interface LocalState {
   lastCourse?: string;
 }
 
+/**
+ * Timetable details the student confirmed about their own schedule. Not in Notion and NOT guessed:
+ * the Mechanik exercise attended is the Thursday 08:15 group (LEE D 105). Stored as a default so
+ * the app never has to ask again, and still changeable in Settings.
+ */
+export const DEFAULT_CHOICES: Readonly<Record<string, string>> = { 'mechanik-uebung': 'mech-u-do1' };
+
 export const emptySynced = (): SyncedState => ({
   v: 2,
   todos: {},
@@ -78,7 +85,7 @@ export const emptySynced = (): SyncedState => ({
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
   // but a real schedule detail the student told us; still overridable in Settings.
-  prefs: { biweeklyParity: 'even', choices: {}, updatedAt: 0 },
+  prefs: { biweeklyParity: 'even', choices: { ...DEFAULT_CHOICES }, updatedAt: 0 },
   tombstones: {},
 });
 
@@ -140,7 +147,8 @@ export function normalizeSynced(raw: unknown): SyncedState {
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {
       biweeklyParity: prefs.biweeklyParity === 'odd' || prefs.biweeklyParity === 'even' ? prefs.biweeklyParity : base.prefs.biweeklyParity,
-      choices: isObj(prefs.choices) ? (prefs.choices as Record<string, string>) : {},
+      // Defaults first: an install from before a choice was known must not keep asking for it.
+      choices: { ...DEFAULT_CHOICES, ...(isObj(prefs.choices) ? (prefs.choices as Record<string, string>) : {}) },
       updatedAt: typeof prefs.updatedAt === 'number' ? prefs.updatedAt : 0,
     },
     tombstones: isObj(raw.tombstones)
@@ -167,7 +175,11 @@ export function migrateV1(v1: V1, now = Date.now()): { synced: SyncedState; loca
   for (const e of v1.exams ?? []) synced.exams[e.id] = { ...e, updatedAt: now };
   for (const [id, done] of Object.entries(v1.taskDone ?? {})) synced.taskDone[id] = { done, updatedAt: now };
   if (v1.prefs) {
-    synced.prefs = { biweeklyParity: v1.prefs.biweeklyParity ?? synced.prefs.biweeklyParity, choices: { ...v1.prefs.choices }, updatedAt: now };
+    synced.prefs = {
+      biweeklyParity: v1.prefs.biweeklyParity ?? synced.prefs.biweeklyParity,
+      choices: { ...synced.prefs.choices, ...v1.prefs.choices },
+      updatedAt: now,
+    };
   }
   return { synced, local: { ...defaultLocal(), theme: v1.theme ?? 'system', recent: v1.recent ?? [] } };
 }

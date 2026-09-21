@@ -7,6 +7,11 @@ import type { Seed } from '../types';
  * file was copied out of the public Notion pages; nothing here flows back.
  * Fields marked "app-side" (aliases) are additions of this app for search.
  *
+ * `color` is app-side too. All six are taken from one scale at the same step (the "600" level of
+ * a standard UI ramp), so they read as one family: equal perceptual weight, none louder than the
+ * others, none neon. Hues are spread far enough apart to stay distinguishable side by side in the
+ * week grid – blue / red / green / yellow / violet / slate.
+ *
  * Not in Notion (therefore intentionally absent): exams, credits, grades,
  * lecture topics, which weeks a "2-wöchentlich" lecture takes place, which
  * exercise group the student attends.
@@ -26,7 +31,7 @@ export const seed: Seed = {
       code: '252-0832-00',
       semester: 'Herbstsemester 2026',
       instructor: 'F. Friedrich Wicker, u. a.',
-      color: '#0d9488',
+      color: '#ca8a04', // Gelb
       icon: '💻',
       aliases: ['Informatik 1', 'Info 1', 'Info1', 'Informatik', 'C++', 'CodeExpert'],
       sessions: [
@@ -47,7 +52,7 @@ export const seed: Seed = {
       code: '151-0321-00',
       semester: 'Herbstsemester 2026',
       instructor: 'K. Shea, u. a.',
-      color: '#e8590c',
+      color: '#7c3aed', // Violett – die Kontrastfarbe zwischen Blau, Rot, Gruen, Gelb, Grau
       icon: '🏗️',
       aliases: ['EDMS', 'Engineering Design', 'Material Selection', 'Materialauswahl', 'Konstruktion'],
       sessions: [
@@ -65,7 +70,7 @@ export const seed: Seed = {
       code: '401-0261-00',
       semester: 'Herbstsemester 2026',
       instructor: 'A. Steiger',
-      color: '#d92d20',
+      color: '#d92d20', // Rot
       icon: '📐',
       aliases: ['Analysis 1', 'Analysis1', 'Ana 1', 'Ana', 'Analysis', 'Mathe'],
       sessions: [
@@ -83,7 +88,7 @@ export const seed: Seed = {
       code: '401-0171-00',
       semester: 'Herbstsemester 2026',
       instructor: 'N. Hungerbühler',
-      color: '#64748b',
+      color: '#475569', // dunkles Schiefergrau
       icon: '🔢',
       aliases: ['Lineare Algebra 1', 'LinAlg', 'Lin Alg', 'LA1', 'LA 1', 'Linear Algebra', 'Mathe'],
       sessions: [
@@ -99,7 +104,7 @@ export const seed: Seed = {
       code: '151-0501-03',
       semester: 'Herbstsemester 2026',
       instructor: 'E. Mazza',
-      color: '#2563eb',
+      color: '#2563eb', // Blau
       icon: '⚙️',
       aliases: ['Mechanik 1', 'Mechanik1', 'Mech 1', 'Mechanics', 'Statik'],
       sessions: [
@@ -118,7 +123,7 @@ export const seed: Seed = {
       code: '151-0909-00',
       semester: 'Herbstsemester 2026',
       instructor: 'D. J. Norris',
-      color: '#16a34a',
+      color: '#16a34a', // Gruen
       icon: '🧪',
       aliases: ['Chemie', 'Chem'],
       sessions: [

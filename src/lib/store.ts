@@ -62,6 +62,21 @@ const subscribe = (cb: () => void) => {
   };
 };
 
+// Another tab of this same browser saved something: adopt it immediately. Deliberately not via
+// commit() – the data is already in localStorage, and re-writing it would loop the sync.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key !== KEY || !e.newValue) return;
+    try {
+      const p = JSON.parse(e.newValue) as Partial<Personal>;
+      state = { synced: normalizeSynced(p.synced), local: { ...defaultLocal(), ...p.local } };
+      listeners.forEach((l) => l());
+    } catch {
+      /* malformed write from another tab – keep what we have */
+    }
+  });
+}
+
 export const getPersonal = () => state;
 export const usePersonal = () => useSyncExternalStore(subscribe, getPersonal, getPersonal);
 

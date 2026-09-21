@@ -102,9 +102,67 @@ Listenzeilen statt Karten, Dark Mode (System/Hell/Dunkel), keine Hover-only-Funk
 - **Neue Rubrik „Notizen":** eigene, freie Notizen (Titel + Text), optional einem Fach zugeordnet, über den
   Sync-Code mitsynchronisiert, durchsuchbar, auch auf der jeweiligen Kursseite sichtbar.
 
+## v4 – Feedback umgesetzt (2026-09-21)
+
+**Sync über Browsergrenzen (der eigentliche Fehler).** Gemeldet: „Notiz in Edge angelegt, in Chrome nicht
+da." Ursache: `initSync()` erzeugte beim ersten Start *pro Install* einen eigenen kvdb-Bucket. Edge und
+Chrome legten also je einen eigenen Datenspeicher an, die sich nie trafen – die gekoppelten Geräte aus v3
+funktionierten, ein zweiter Browser nie. Behoben durch einen **fest eingebauten, geteilten Sync-Code**
+(`SHARED_BUCKET`, über `VITE_SYNC_BUCKET` überschreibbar): jeder Install landet ohne Zutun im selben
+Speicher. Zusätzlich: Abgleich alle 15 s statt 2 min, sofort bei `focus`/`online`/Tab-Wechsel,
+`BroadcastChannel` + `storage`-Event für andere Tabs desselben Browsers. Bestätigt per End-to-End-Test mit
+zwei isolierten Browser-Kontexten gegen den Produktions-Build: Notiz aus „Edge" erscheint nach ~6 s in
+„Chrome", To-do umgekehrt nach ~8 s, Löschung nach ~8 s – **ohne Neuladen**, nur In-App-Routenwechsel.
+*Bewusster Kompromiss:* der Code steckt im öffentlichen Bundle, ist also für jeden lesbar, der die
+Seiten-URL kennt. Vom Nutzer so entschieden, im UI und im README offen benannt; „Eigenen Code erzeugen"
+bleibt als privater Ausweg. Alte, pro Browser erzeugte Buckets werden beim ersten Start einmalig
+ausgelesen und eingemischt (`migrateLegacy`), damit nichts verloren geht.
+
+**Zähler.** Das Badge an „Aufgaben" zählte `dueWithin(…, 7)` – also nur datierte Einträge der nächsten
+7 Tage. Bei 4 offenen Aufgaben stand deshalb 3 da (die vierte war 8 Tage entfernt). Jetzt: alle offenen
+Einträge, direkt aus `useItems()` abgeleitet, damit Abhaken im selben Render durchschlägt. Notizen haben
+denselben Mechanismus (ruhigeres Badge, da keine Bringschuld). Kopfzeilen sagen es zusätzlich im Klartext.
+
+**Aufgaben-Kacheln.** `.filters` war ein Scroll-Streifen; die letzte Kachel war abgeschnitten. Ab
+Container-Breite 460 px bricht die Reihe jetzt um (`flex-wrap`), Kacheln behalten ihre volle Beschriftung.
+Unter 460 px bleibt der Streifen, weil Umbruch dort den halben Bildschirm fressen würde.
+
+**Wochenplan.** Blöcke sind jetzt schlichte Rechtecke: keine Radien, keine dicke linke Kante, `left/right: 0`
+und volle Slot-Höhe – ein Raster statt schwebender Karten. Vorlesung/Übung unterscheiden sich **nicht** mehr
+über die Farbe, sondern über ein Kapitälchen-Label („VORLESUNG"/„ÜBUNG") und eine feine Diagonalschraffur
+bei Übungen; die Fachfarbe bleibt dem Fach vorbehalten.
+
+**Farben.** Alle sechs aus einer Rampe auf derselben Stufe (600er-Niveau), damit sie als Familie wirken:
+Mechanik Blau `#2563eb`, Analysis Rot `#d92d20`, Chemie Grün `#16a34a`, Informatik Gelb `#ca8a04`,
+Eng. Design Violett `#7c3aed` (die Kontrastfarbe), Lin. Algebra dunkles Schiefergrau `#475569`.
+
+**„Übungsgruppe festlegen".** Die Aufforderung erschien, weil `prefs.choices` leer war. Vom Nutzer erfragt
+(Do 08:15, LEE D 105) und als `DEFAULT_CHOICES` hinterlegt – auch für bereits gespeicherte Daten
+(`normalizeSynced` füllt fehlende Defaults auf, eine abweichende Wahl gewinnt weiterhin). `GroupChoice`
+kann eine Auswahl nicht mehr abwählen; genau das hatte den Hinweis zurückgebracht.
+
+**Tastenkürzel.** Erweitert statt parallel gebaut: `Z` Notizen, `M` neue Notiz, `P` neue Prüfung,
+`S` synchronisieren; Sheet gruppiert nach Öffnen/Erfassen/Sonst. Alles blanke Buchstaben – Browser und OS
+belegen nur Kombinationen mit Modifier, daher keine Konflikte. Für „Aufgabe abhaken" bewusst *kein* Kürzel:
+die Kästchen sind Buttons, Tab + Leertaste tut es schon; ein globales Kürzel bräuchte ein Fokus-Konzept.
+
+**AI-Vorbereitung (`src/lib/ai/`).** Context-Projektion, validierte Action-Schicht, anbieterunabhängige
+Provider-Schnittstelle und ein regelbasierter Mock; 17 Tests. Kein zweites Datenmodell: gelesen wird aus
+`lib/store.ts`, geschrieben ausschliesslich über dieselben `actions.*`, die auch die Oberfläche benutzt.
+*Bewusst nicht gebaut:* Schreiben in den Stundenplan. Vorlesungen und Übungen kommen aus dem read-only
+Notion-Snapshot; für frei gesetzte Termine bräuchte es einen eigenen `events`-Typ im Datenmodell. Bis dahin
+bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sagt es dem Modell explizit.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
   automatischer, strikt lesender Abgleich per Notion-API (Integration nur mit „Read content“) in der GitHub Action.
 - kvdb.io ist ein kleiner kostenloser Drittanbieter ohne SLA; sollte er dauerhaft ausfallen, bräuchte die App
   einen alternativen Sync-Transport (die Merge-Logik selbst ist transport-unabhängig, siehe `lib/state.ts`).
+  (Beim Aufräumen von Testdaten fiel auf, dass gelöschte Werte „zurückkamen" – Ursache war kein kvdb-Problem,
+  sondern ein noch offener Tab, der seinen Stand brav wieder hochlud. Also korrektes Verhalten.)
+- Der geteilte Sync-Code ist öffentlich lesbar (siehe v4). Echter Schutz bräuchte entweder ein Backend mit
+  Login oder clientseitige Verschlüsselung mit einer Passphrase pro Gerät – beides widerspricht dem
+  ausdrücklichen Wunsch „ohne jegliche Tokens oder sonst etwas".
+- AI: Stundenplan-Schreibzugriff fehlt mangels eigenem `events`-Typ; ausserdem gibt es noch kein Chat-UI und
+  keinen Proxy. Beides ist vorbereitet (`AIProvider`, `VITE_AI_PROXY_URL`), aber nicht gebaut.

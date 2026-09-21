@@ -99,9 +99,11 @@ export function GroupChoice({ course, group }: { course: Course; group: string }
     <ul className="choice" role="radiogroup" aria-label="Übungsgruppe">
       {course.sessions.filter((s) => s.choiceGroup === group).map((s) => (
         <li key={s.id}>
+          {/* Always picks – never unsets. A radio group without a selection is what brought back
+              the "Übungsgruppe festlegen" prompt; there is a definite answer, so one is always set. */}
           <button type="button" role="radio" aria-checked={chosen === s.id}
             className={cx('choice__btn', chosen === s.id && 'is-on')}
-            onClick={() => actions.setChoice(group, chosen === s.id ? null : s.id)}>
+            onClick={() => actions.setChoice(group, s.id)}>
             <span className="choice__radio" aria-hidden="true" />
             <span>{DAY_SHORT[s.day]} {s.start}–{s.end} · {s.room}</span>
           </button>

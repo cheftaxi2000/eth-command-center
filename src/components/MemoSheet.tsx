@@ -59,7 +59,7 @@ export function MemoSheet() {
       <form className="form" onSubmit={submit}>
         <label className="field">
           <span>Titel</span>
-          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. WLAN-Passwort" enterKeyHint="next" />
+          <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="z. B. Sprechstunde Mechanik" enterKeyHint="next" />
         </label>
 
         <div className="field">

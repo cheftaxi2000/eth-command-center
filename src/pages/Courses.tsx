@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { CourseRow } from '../components/course';
-import { SyncBadge } from '../components/Nav';
+import { SyncBadge, noteCountLabel, useNoteCount } from '../components/Nav';
 import { Icon } from '../components/ui';
 import { seed } from '../data/seed';
 import { COURSES, useItems } from '../lib/data';
@@ -11,6 +11,7 @@ export function CoursesPage() {
   useTitle('Kurse');
   const now = useNow();
   const items = useItems();
+  const notes = useNoteCount();
   return (
     <>
       <header className="page-head">
@@ -29,7 +30,7 @@ export function CoursesPage() {
         <li>
           <Link to="/notes" className="row row--link">
             <Icon name="note" size={20} />
-            <span className="row__main"><span className="row__title">Notizen</span><span className="row__meta"><span>Persönlich, nicht aus Notion</span></span></span>
+            <span className="row__main"><span className="row__title">Notizen</span><span className="row__meta"><span>{notes > 0 ? `Du hast ${noteCountLabel(notes)}` : 'Persönlich, nicht aus Notion'}</span></span></span>
             <Icon name="chevron-right" size={18} />
           </Link>
         </li>

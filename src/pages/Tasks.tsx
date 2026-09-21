@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { taskCountLabel } from '../components/Nav';
 import { ItemRow } from '../components/rows';
 import { toast } from '../components/toast';
 import { Accordion, CourseDot, Empty, Icon, SectionHead, cx } from '../components/ui';
@@ -30,14 +31,18 @@ export function TasksPage() {
   const { items: openish, lingering } = useLingerDone(list);
   const done = list.filter((i) => i.done && !lingering.has(i.id));
   const g = groupItems(openish, done, now);
-  const openCount = g.overdue.length + g.soon.length + g.later.length + g.undated.length;
+  // The honest total: every open item, dated or not. Same number the nav badge shows.
+  const openCount = list.filter((i) => !i.done).length;
+  const shownCount = g.overdue.length + g.soon.length + g.later.length + g.undated.length;
   const ownDone = g.done.filter((i) => i.kind === 'todo').length;
 
   return (
     <>
       <header className="page-head">
         <div>
-          <p className="eyebrow">To-dos, Abgaben, Prüfungen</p>
+          <p className="eyebrow">
+            {openCount === 0 ? 'To-dos, Abgaben, Prüfungen' : `Du hast ${taskCountLabel(openCount)} zu erledigen`}
+          </p>
           <h1>Aufgaben</h1>
         </div>
         <div className="stepper">
@@ -59,7 +64,7 @@ export function TasksPage() {
         ))}
       </div>
 
-      {openCount === 0 && <Empty>Alles erledigt{filter ? ' in diesem Fach' : ''}. 🎉</Empty>}
+      {shownCount === 0 && <Empty>Alles erledigt{filter ? ' in diesem Fach' : ''}. 🎉</Empty>}
 
       <Group title="Überfällig" items={g.overdue} now={now} lingering={lingering} danger />
       <Group title="Nächste 7 Tage" items={g.soon} now={now} lingering={lingering} />

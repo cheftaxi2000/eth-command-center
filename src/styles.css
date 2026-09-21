@@ -144,6 +144,8 @@ h1 { font-size: 2rem; line-height: 1.12; letter-spacing: -0.022em; font-weight: 
 .nav-item .dot { margin: 0 5px 0 6px; }
 .kbd-hint--quiet { opacity: 0; transition: opacity 0.15s; }
 .badge { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--ink); color: var(--bg); font-size: 0.75rem; font-weight: 650; display: grid; place-items: center; font-variant-numeric: tabular-nums; }
+/* Notes are a count, not a demand – same shape as the task badge, none of its urgency. */
+.badge--quiet { background: var(--surface-3); color: var(--ink-2); }
 @media (hover: hover) {
   .nav-item:hover, .side__btn:hover { background: var(--surface-2); }
   .side:hover .kbd-hint--quiet { opacity: 1; }

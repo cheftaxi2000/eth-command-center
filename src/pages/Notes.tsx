@@ -2,6 +2,7 @@ import { TARGETS, targetOf } from '../lib/data';
 import { useTitle } from '../lib/hooks';
 import { usePersonal } from '../lib/store';
 import type { Memo } from '../lib/state';
+import { noteCountLabel } from '../components/Nav';
 import { CourseDot, Empty, Icon } from '../components/ui';
 import { useUI } from '../components/ui-context';
 
@@ -17,7 +18,9 @@ export function NotesPage() {
     <>
       <header className="page-head">
         <div>
-          <p className="eyebrow">Persönlich, nicht aus Notion</p>
+          <p className="eyebrow">
+            {memos.length === 0 ? 'Persönlich, nicht aus Notion' : `Du hast ${noteCountLabel(memos.length)}`}
+          </p>
           <h1>Notizen</h1>
         </div>
         <button type="button" className="btn btn--primary" onClick={() => ui.openMemoEditor({ mode: 'new' })}>
@@ -26,7 +29,7 @@ export function NotesPage() {
       </header>
 
       {memos.length === 0 ? (
-        <Empty>Noch keine Notizen. Zum Beispiel Passwörter, Ideen oder Dinge, die du dir sonst merken müsstest.</Empty>
+        <Empty>Noch keine Notizen. Zum Beispiel Formeln, Ideen oder Dinge, die du dir sonst merken müsstest. (Keine Passwörter – siehe Hinweis beim Sync.)</Empty>
       ) : (
         <div className="todo-groups">
           {groups.map(({ t, list }) => (

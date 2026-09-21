@@ -5,12 +5,13 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 
 - **Heute** – laufende/nächste Veranstaltung mit Countdown und Raum (Tipp → ETH-Raumplan), Fälliges der nächsten 7 Tage, To-dos pro Fach
 - **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken.
-- **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – z. B. Passwörter, Ideen, Dinge zum Merken.
-- **Woche** – Stundenplan mit Jetzt-Linie; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
+- **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – Formeln, Ideen, Dinge zum Merken
+- **Woche** – Stundenplan als klares Raster: ein Rechteck pro Termin, Fachfarbe fürs Fach, Schraffur + Label für Übung vs. Vorlesung; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
+- **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene (nicht nur die nächsten 7 Tage) und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
 - **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
-- **Schnell wechseln** – Kurs-Chips oben (iPad), Wischen zwischen Kursen, Tasten `1`–`6`, `N` für neues To-do, `?` für alle Kürzel
-- **Sync** – läuft automatisch im Hintergrund, ganz ohne Login oder Token (siehe unten)
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `S` synchronisieren, `?` zeigt alles
+- **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
 
 ## Notion bleibt unverändert (read-only)
 
@@ -40,18 +41,53 @@ Danach wird jede Änderung auf `main` automatisch gebaut, getestet und veröffen
 - **Windows:** in Edge/Chrome öffnen → Adressleiste → **App installieren** (oder einfach als Lesezeichen).
 - Neue Versionen meldet die App mit „Neue Version verfügbar · Aktualisieren“.
 
-## Sync zwischen Laptop und iPad
+## Sync über alle Browser und Geräte
 
-Läuft automatisch, ganz ohne Login oder Token: Beim allerersten Öffnen erzeugt die App selbst einen
-zufälligen **Sync-Code** (über [kvdb.io](https://kvdb.io), einen kostenlosen, anonymen Key-Value-Speicher)
-und synchronisiert sofort im Hintergrund.
+Es gibt **eine** zentrale Datenquelle, und alle Ansichten (Heute, Woche, Aufgaben, Notizen, Zähler)
+lesen aus ihr. Der Speicher im Browser ist nur ein Offline-Cache davon, nicht das Original:
 
-Ein zweites Gerät koppeln: **Einstellungen → Sync** öffnen, den angezeigten Code kopieren, auf dem zweiten
-Gerät (auf dem iPad in der installierten App, nicht in Safari) unter „Code eines anderen Geräts eingeben“
-einfügen → Koppeln. Bereits vorhandene Daten auf beiden Geräten werden zusammengeführt, nichts geht verloren.
+```
+Edge ─┐
+Chrome┼─► kvdb.io/<Sync-Code>/studium  (Single Source of Truth)
+iPad ─┘
+```
 
-Wer den Code kennt, kann diese Daten lesen und ändern – nicht öffentlich teilen. Offline erfasste Änderungen
-werden automatisch nachgeholt, sobald wieder eine Verbindung besteht.
+Läuft ohne jede Einrichtung: Der **Sync-Code** ist fest in die App eingebaut, also benutzen alle Browser
+und Geräte automatisch denselben Stand. Eine Notiz aus Edge ist in Chrome in ein paar Sekunden da – ohne
+Neuladen (Abgleich alle 15 s, sofort bei jeder Änderung, beim Tab-Wechsel und sobald das Netz zurück ist;
+weitere Tabs desselben Browsers erfahren es unmittelbar). Angelegtes, Geändertes und Gelöschtes wird pro
+Eintrag zusammengeführt (last-writer-wins mit Löschmarken), nichts überschreibt blind etwas anderes.
+
+**Der Preis dafür, ehrlich:** dieser Code steht im öffentlichen JavaScript der Seite. Wer die Adresse der
+Seite kennt, könnte die Daten lesen oder ändern. Für Stundenplan, To-dos und Lernnotizen ist das in Ordnung
+– **keine Passwörter oder sonst etwas Sensibles** in die Notizen. Wer das nicht will: **Einstellungen → Sync
+→ „Eigenen Code erzeugen"**, dann gilt ein privater Code, der auf jedem weiteren Gerät einmal eingetragen
+wird. Bestehende Daten werden dabei mitgenommen.
+
+Offline erfasste Änderungen werden automatisch nachgeholt, sobald wieder eine Verbindung besteht.
+
+## AI-Assistent (vorbereitet, noch ohne Modell)
+
+`src/lib/ai/` enthält die komplette Schicht, über die später eine (kostenlose) AI-API die App bedienen kann
+– ohne eigenes Datenmodell und ohne direkten Zugriff auf den Speicher:
+
+```
+Satz → AIService → Provider (Modell) → strukturierte Action → Validierung → Store → UI + Sync
+```
+
+- `context.ts` – `buildAIContext()` projiziert den aktuellen Zustand (Fächer, Aufgaben, Notizen, Stundenplan,
+  Einstellungen) als Daten; getrennt in *permanent* und *dynamisch*, damit nur das Nötige verschickt wird.
+  Wird bei **jeder** Anfrage neu gebaut – die AI kann gar nicht mit veralteten Daten arbeiten.
+- `actions.ts` – die einzigen erlaubten Operationen (`get_tasks`, `create_task`, `delete_note`, …) mit
+  deklarierten Parametern, Validierung und Bestätigungspflicht für alles Löschende.
+- `provider.ts` – anbieterunabhängige Schnittstelle. Der API-Key liegt **nie** im Frontend: konfiguriert
+  wird nur die URL eines server-seitigen Proxys (`VITE_AI_PROXY_URL`), der den Schlüssel aus einer
+  Environment-Variable nimmt.
+- `mock.ts` – regelbasierter Ersatz-Provider ohne Netz, damit die ganze Kette schon heute testbar ist:
+  `mockAI('Füge eine Analysis-Aufgabe für Freitag hinzu: Serie 2')`.
+
+Getestet in `src/lib/ai/ai.test.ts` (u. a.: Löschen passiert nie ohne Bestätigung, erfundene Aktionen und
+Parameter werden abgewiesen, ein neuer Eintrag steckt sofort im nächsten Context).
 
 ## Entwickeln
 
@@ -70,8 +106,9 @@ npm run icons      # PWA-Icons neu erzeugen
 src/
   data/seed.ts        Notion-Snapshot (read-only Quelle)
   lib/state.ts        eigenes Datenmodell, Merge (last-writer-wins + Löschmarken), v1-Migration
-  lib/store.ts        lokaler Zustand + Aktionen
-  lib/sync.ts         automatischer Sync über kvdb.io (Sync-Code statt Token)
+  lib/store.ts        zentraler Zustand + Aktionen – die einzige Schreibstelle der App
+  lib/sync.ts         automatischer Sync über kvdb.io (fest eingebauter Sync-Code, kein Token)
+  lib/ai/             Context, Actions, Provider-Abstraktion und Mock für den späteren Assistenten
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag
   lib/data.ts         Fristen & To-dos als eine Liste
   lib/search.ts       Suche, Fach-Erkennung für Schnellerfassung

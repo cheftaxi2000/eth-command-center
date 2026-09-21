@@ -9,7 +9,7 @@ import { COURSES } from '../lib/data';
 import { useTitle } from '../lib/hooks';
 import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
-import { getSyncConfig, joinSync, newSyncCode, syncNow, useSyncStatus } from '../lib/sync';
+import { getSyncConfig, joinSync, newSyncCode, syncNow, switchToSharedCode, useSyncStatus } from '../lib/sync';
 import { toLocalDate } from '../lib/time';
 
 export function SettingsPage() {
@@ -158,7 +158,6 @@ function SyncSection() {
   };
 
   const copyCode = async () => {
-    if (!cfg) return;
     try {
       await navigator.clipboard.writeText(cfg.bucket);
       setCopied(true);
@@ -172,9 +171,19 @@ function SyncSection() {
     setBusy(true);
     try {
       await newSyncCode();
-      toast({ text: 'Neuer Sync-Code erzeugt – deine bisherigen Einträge bleiben auf diesem Gerät' });
+      toast({ text: 'Eigener Sync-Code erzeugt – deine Einträge sind mitgenommen. Auf anderen Geräten denselben Code eintragen.' }, 6000);
     } catch (err) {
       toast({ text: err instanceof Error ? err.message : String(err) });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const backToShared = async () => {
+    setBusy(true);
+    try {
+      await switchToSharedCode();
+      toast({ text: 'Wieder am eingebauten Code – alle Browser und Geräte teilen denselben Stand.' }, 5000);
     } finally {
       setBusy(false);
     }
@@ -185,12 +194,12 @@ function SyncSection() {
     status.phase === 'syncing' ? 'Synchronisiere …'
     : status.phase === 'error' ? 'Sync-Problem'
     : status.phase === 'offline' ? 'Offline – synct automatisch weiter'
-    : status.phase === 'starting' ? 'Code wird erstellt …'
     : 'Synchronisiert';
+  const shared = cfg.source === 'shared';
 
   return (
     <section id="sync" className="scroll-target">
-      <h2 className="h-section">Sync zwischen Laptop und iPad</h2>
+      <h2 className="h-section">Sync über alle Browser und Geräte</h2>
       <div className="panel panel--pad">
         <p className="sync-state">
           <Icon name={status.phase === 'error' ? 'alert' : status.phase === 'offline' ? 'cloud-off' : 'cloud'} size={20} />
@@ -198,22 +207,28 @@ function SyncSection() {
         </p>
         {status.error && <p className="form-error">{status.error}</p>}
 
-        {cfg && (
-          <>
-            <p className="hint hint--top">
-              Läuft automatisch, ganz ohne Login. Zum Koppeln eines zweiten Geräts trägst du dort denselben Code ein:
-            </p>
-            <div className="sync-code" data-noswipe>
-              <span className="sync-code__value">{cfg.bucket}</span>
-              <button type="button" className="btn btn--sm" onClick={() => void copyCode()}>{copied ? 'Kopiert' : 'Kopieren'}</button>
-            </div>
-            <p className="hint">Wer diesen Code kennt, kann diese Daten lesen und ändern – nicht öffentlich teilen.</p>
-            <div className="btn-row">
-              <button type="button" className="btn btn--primary" onClick={() => void syncNow()} disabled={status.phase === 'syncing'}>Jetzt synchronisieren</button>
-              <button type="button" className="btn" onClick={() => void freshCode()} disabled={busy}>Neuen Code erzeugen</button>
-            </div>
-          </>
-        )}
+        <p className="hint hint--top">
+          {shared
+            ? 'Läuft automatisch – der Code steckt fest in der App. Egal ob Edge, Chrome, Safari oder iPad: alles zeigt denselben Stand, ohne dass du irgendwo etwas einrichtest.'
+            : 'Du nutzt einen eigenen, privaten Code. Andere Geräte sehen diese Daten nur, wenn du den Code dort einträgst.'}
+        </p>
+        <div className="sync-code" data-noswipe>
+          <span className="sync-code__value">{cfg.bucket}</span>
+          <button type="button" className="btn btn--sm" onClick={() => void copyCode()}>{copied ? 'Kopiert' : 'Kopieren'}</button>
+        </div>
+        <p className="hint">
+          {shared
+            ? 'Ehrlich gesagt: Dieser Code steht im öffentlichen JavaScript der Seite. Wer die Adresse der Seite kennt, könnte die Daten lesen oder ändern. Für Stundenplan und To-dos in Ordnung – für Passwörter nicht.'
+            : 'Wer diesen Code kennt, kann diese Daten lesen und ändern – nicht öffentlich teilen.'}
+        </p>
+        <div className="btn-row">
+          <button type="button" className="btn btn--primary" onClick={() => void syncNow()} disabled={status.phase === 'syncing'}>Jetzt synchronisieren</button>
+          {shared ? (
+            <button type="button" className="btn" onClick={() => void freshCode()} disabled={busy}>Eigenen Code erzeugen</button>
+          ) : (
+            <button type="button" className="btn" onClick={() => void backToShared()} disabled={busy}>Zurück zum eingebauten Code</button>
+          )}
+        </div>
 
         <form className="form" onSubmit={join} style={{ marginTop: 18 }}>
           <label className="field">

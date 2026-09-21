@@ -146,15 +146,20 @@ function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[
             {isSameDay(day, now) && nowMin >= START && nowMin <= END && <div className="tt__now" style={{ top: nowMin - START }} />}
             {week[i].map((o) => {
               const top = minutesOf(o.session.start) - START;
+              // Fills its slot exactly: a 10:15–12:00 lecture covers 10:15–12:00 of the grid, no inset.
               const height = minutesOf(o.session.end) - minutesOf(o.session.start);
               const flag = flagText(o, true);
               const due = o.session.kind === 'exercise' ? dueThisWeek(o.course.id) : [];
               return (
                 <Link key={o.key} to={`/courses/${o.course.id}`}
-                  className={cx('block', o.session.kind === 'exercise' && 'block--ex', o.flag && 'block--uncertain', +now >= +o.end && 'is-past')}
-                  style={{ ...cvar(o.course.color), top, height: height - 2 }}>
+                  className={cx('block', `block--${o.session.kind}`, o.flag && 'block--uncertain', +now >= +o.end && 'is-past')}
+                  style={{ ...cvar(o.course.color), top, height }}>
                   <span className="block__name">{o.course.shortName}</span>
-                  <span className="block__meta">{KIND_LABEL[o.session.kind]} · {o.session.room}</span>
+                  <span className="block__meta">
+                    {/* Lecture vs. exercise is carried by the label and (for exercises) a hatch
+                        pattern – never by a second colour, so one course stays one colour. */}
+                    <span className="block__kind">{KIND_LABEL[o.session.kind]}</span> {o.session.room}
+                  </span>
                   {height >= 90 && <span className="block__meta">{o.session.start}–{o.session.end}</span>}
                   {flag && height >= 60 && <Chip tone="warn">{flag}</Chip>}
                   {height >= 60 && due.slice(0, 2).map((d) => (
