@@ -34,6 +34,8 @@ const SYSTEM = [
   'Datumsangaben immer als JJJJ-MM-TT bzw. JJJJ-MM-TTTHH:MM.',
   'Fragen beantwortest du direkt aus dem Kontext – dafür brauchst du keine get_-Aktion.',
   'Nach einer Änderung bestätigst du in einem kurzen Satz, was du getan hast.',
+  'Formatiere mit einfachem Markdown: kurze Listen, **fett** für Zeiten, Räume und Fristen. Keine Überschriften bei kurzen Antworten.',
+  'Für Lernpläne nutze die freien Zeitfenster (free) aus dem Stundenplan und die nächsten Fristen.',
 ].join(' ');
 
 export class AIService {

@@ -130,3 +130,41 @@ export function geminiProvider(key: string): AIProvider {
     },
   };
 }
+
+/**
+ * Speech → text for browsers without built-in dictation (see lib/voice.ts). Uses the native
+ * generateContent endpoint, which takes audio inline; the result goes into the input field, the
+ * user still decides whether to send it.
+ */
+export async function transcribeAudio(key: string, wavBase64: string): Promise<string> {
+  const send = (model: string) =>
+    fetch(`${BASE}/models/${model}:generateContent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: 'Transkribiere diese Sprachaufnahme wörtlich auf Deutsch. Gib nur den gesprochenen Text zurück, ohne Anführungszeichen oder Kommentar.' },
+              { inline_data: { mime_type: 'audio/wav', data: wavBase64 } },
+            ],
+          },
+        ],
+        generationConfig: { temperature: 0 },
+      }),
+    });
+
+  let res: Response;
+  try {
+    res = await send(storedModel());
+    if (res.status === 404) {
+      const model = await findCurrentModel(key);
+      if (model) res = await send(model);
+    }
+  } catch {
+    throw new Error('Keine Verbindung zu Gemini.');
+  }
+  if (!res.ok) throw new Error(explain(res.status));
+  const data = (await res.json()) as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
+  return (data.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? '').join('').trim();
+}

@@ -176,6 +176,8 @@ h1 { font-size: 2rem; line-height: 1.12; letter-spacing: -0.022em; font-weight: 
   background: var(--accent); color: var(--accent-ink); box-shadow: var(--shadow);
 }
 .fab:active { transform: scale(0.96); }
+/* the assistant sits right above the "+" – smaller, quieter, same corner */
+.fab--ai { width: 48px; height: 48px; right: max(23px, calc(env(safe-area-inset-right) + 5px)); bottom: calc(var(--tabbar-h) + 88px + var(--safe-b)); background: var(--surface); color: var(--accent); border: 1px solid var(--line-strong); }
 
 /* ---------- toasts ---------- */
 .toasts { position: fixed; z-index: 200; left: 0; right: 0; bottom: calc(var(--tabbar-h) + 88px + var(--safe-b)); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; padding: 0 16px; }

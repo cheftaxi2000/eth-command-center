@@ -18,7 +18,7 @@ export type { ActionCall, ActionDef, ActionResult, ParamDef, ParamType } from '.
 export { configuredProxy, httpProvider } from './provider';
 export type { AIMessage, AIProvider, AIReply, AIRequest, ProxyConfig } from './provider';
 export { mockProvider, parseIntent } from './mock';
-export { geminiProvider, parseCompletion, toOpenAITools } from './gemini';
+export { geminiProvider, parseCompletion, toOpenAITools, transcribeAudio } from './gemini';
 export { getAIKey, maskKey, setAIKey, useAIKey } from './key';
 export { AIService, createAIService, mockAI } from './service';
 export type { AITurn } from './service';

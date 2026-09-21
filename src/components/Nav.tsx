@@ -155,3 +155,13 @@ export function Fab() {
     </button>
   );
 }
+
+/** Floating assistant button above the "+" (iPad portrait / phone), where there is no sidebar. */
+export function AiFab() {
+  const ui = useUI();
+  return (
+    <button type="button" className="fab fab--ai" aria-label="Assistent öffnen" onClick={() => ui.setAssistantOpen(true)}>
+      <Icon name="spark" size={22} />
+    </button>
+  );
+}

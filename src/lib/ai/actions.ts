@@ -2,7 +2,7 @@ import { COURSES, buildItems, targetOf } from '../data';
 import { getNow } from '../now';
 import { GENERAL_ID } from '../state';
 import { actions as store, getPersonal } from '../store';
-import { toLocalDate } from '../time';
+import { dueMoment, fmtDateShort, fmtTime, isAllDay, toLocalDate } from '../time';
 import { buildAIDynamicContext, buildAIPermanentContext } from './context';
 
 /**
@@ -165,6 +165,8 @@ export function validateAction(call: ActionCall): Validation {
 const item = (id: string) => buildItems(getPersonal().synced, getNow()).find((i) => i.id === id);
 const fail = (action: string, message: string): ActionResult => ({ ok: false, action, message });
 const subjectName = (id: string) => targetOf(id).name;
+/** "2026-09-22T13:00" → "Di, 22. Sept., 13:00" – for messages the user reads. */
+const human = (due: string) => (isAllDay(due) ? fmtDateShort(dueMoment(due)) : `${fmtDateShort(dueMoment(due))}, ${fmtTime(dueMoment(due))}`);
 
 /* ---------- the registry ---------- */
 
@@ -240,7 +242,7 @@ export const ACTIONS: Record<string, ActionDef> = {
       return {
         ok: true,
         action: 'create_task',
-        message: `To-do „${p.title as string}" für ${subjectName(courseId)} angelegt${p.deadline ? `, fällig ${p.deadline as string}` : ''}.`,
+        message: `To-do „${p.title as string}" für ${subjectName(courseId)} angelegt${p.deadline ? `, fällig ${human(p.deadline as string)}` : ''}.`,
         data: { id },
       };
     },
@@ -273,7 +275,8 @@ export const ACTIONS: Record<string, ActionDef> = {
         ...(p.deadline ? { due: p.deadline as string } : {}),
         ...(typeof p.done === 'boolean' ? { done: p.done } : {}),
       });
-      return { ok: true, action: 'update_task', message: `„${found.title}" geändert.`, data: { id } };
+      const what = [p.deadline && `neue Frist ${human(p.deadline as string)}`, p.title && `neuer Text`, p.subject && `neues Fach ${subjectName(p.subject as string)}`, typeof p.done === 'boolean' && (p.done ? 'erledigt' : 'wieder offen')].filter(Boolean).join(', ');
+      return { ok: true, action: 'update_task', message: `„${found.title}" geändert${what ? `: ${what}` : ''}.`, data: { id } };
     },
   },
 
@@ -369,7 +372,7 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
     run: (p) => {
       store.saveExam({ courseId: p.subject as string, title: p.title as string, when: p.when as string, location: p.location as string | undefined });
-      return { ok: true, action: 'create_exam', message: `Prüfung „${p.title as string}" am ${p.when as string} eingetragen.` };
+      return { ok: true, action: 'create_exam', message: `Prüfung „${p.title as string}" am ${human(p.when as string)} eingetragen.` };
     },
   },
 };

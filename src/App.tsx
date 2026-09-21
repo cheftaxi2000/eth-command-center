@@ -1,9 +1,9 @@
 import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { AssistantSheet } from './components/AssistantSheet';
+import { Assistant } from './components/Assistant';
 import { EditorSheet } from './components/EditorSheet';
 import { MemoSheet } from './components/MemoSheet';
-import { Fab, SideNav, TabBar } from './components/Nav';
+import { AiFab, Fab, SideNav, TabBar } from './components/Nav';
 import { SearchOverlay } from './components/SearchOverlay';
 import { ShortcutsSheet, useGlobalShortcuts } from './components/Shortcuts';
 import { Toasts } from './components/toast';
@@ -52,10 +52,11 @@ function Shell({ children }: { children: ReactNode }) {
       </main>
       <TabBar />
       <Fab />
+      <AiFab />
       <SearchOverlay />
       <EditorSheet />
       <MemoSheet />
-      <AssistantSheet />
+      <Assistant />
       <ShortcutsSheet />
       <Toasts />
     </div>
