@@ -1,0 +1,17 @@
+# Server-side proxy between the app and the AI provider. The API key lives ONLY here, as a
+# Cloudflare secret (`npx wrangler secret put AI_API_KEY`) – never in the repo, never in the app.
+name = "eth-ai"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Who may call this proxy (comma-separated). Everything else gets 403.
+ALLOWED_ORIGINS = "https://cheftaxi2000.github.io,http://localhost:5173,http://localhost:4173,http://localhost:4174"
+# Optional: override the model, e.g. MODEL = "llama-3.3-70b-versatile". Empty = sensible default per provider.
+MODEL = ""
+
+# At most 20 requests per minute per caller – so someone who finds the URL cannot burn the free quota.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 20, period = 60 }
