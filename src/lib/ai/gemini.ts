@@ -19,6 +19,7 @@ const HINT: Record<string, string> = {
   due: ' (Format JJJJ-MM-TT oder JJJJ-MM-TTTHH:MM)',
   subject: ' (Fachname oder Fach-Id)',
   id: ' (Id aus dem Kontext)',
+  url: ' (Web-Adresse, z. B. https://…)',
 };
 
 /** App action specs → OpenAI "function" tools. Formats go into descriptions so the model gets them right. */

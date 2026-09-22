@@ -3,6 +3,8 @@
  * defaults, v1 migration, validation and the conflict-free merge used by the sync.
  */
 
+import { isWebUrl } from './links';
+
 export const GENERAL_ID = 'allgemein';
 
 export interface Todo {
@@ -37,6 +39,18 @@ export interface Memo {
   updatedAt: number;
 }
 
+/** A link the student saved under "Ressourcen" (script, Moodle page, recordings …). Notion's own links stay read-only. */
+export interface OwnLink {
+  id: string;
+  /** Course id or GENERAL_ID */
+  courseId: string;
+  label: string;
+  /** Always http(s) – see lib/links.ts */
+  url: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /** One finished focus session from the study timer (only finished ones are stored and synced). */
 export interface StudySession {
   id: string;
@@ -67,6 +81,7 @@ export interface SyncedState {
   todos: Record<string, Todo>;
   exams: Record<string, Exam>;
   memos: Record<string, Memo>;
+  links: Record<string, OwnLink>;
   study: Record<string, StudySession>;
   taskDone: Record<string, Override>;
   prefs: Prefs;
@@ -93,6 +108,7 @@ export const emptySynced = (): SyncedState => ({
   todos: {},
   exams: {},
   memos: {},
+  links: {},
   study: {},
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
@@ -133,6 +149,7 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
     todos: mergeRecords(a.todos, b.todos, tombstones),
     exams: mergeRecords(a.exams, b.exams, tombstones),
     memos: mergeRecords(a.memos, b.memos, tombstones),
+    links: mergeRecords(a.links, b.links, tombstones),
     study: mergeRecords(a.study, b.study, tombstones),
     taskDone: mergeRecords(a.taskDone, b.taskDone, {}),
     prefs: b.prefs.updatedAt > a.prefs.updatedAt ? b.prefs : a.prefs,
@@ -157,6 +174,8 @@ export function normalizeSynced(raw: unknown): SyncedState {
     todos: pick<Todo>(raw.todos, (t) => typeof t.id === 'string' && typeof t.text === 'string' && typeof t.updatedAt === 'number'),
     exams: pick<Exam>(raw.exams, (e) => typeof e.id === 'string' && typeof e.when === 'string' && typeof e.updatedAt === 'number'),
     memos: pick<Memo>(raw.memos, (m) => typeof m.id === 'string' && typeof m.body === 'string' && typeof m.updatedAt === 'number'),
+    // Anyone who knows the shared code can write to the store: only http(s) addresses get through.
+    links: pick<OwnLink>(raw.links, (l) => typeof l.id === 'string' && typeof l.courseId === 'string' && typeof l.label === 'string' && typeof l.url === 'string' && isWebUrl(l.url) && typeof l.createdAt === 'number' && typeof l.updatedAt === 'number'),
     study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {

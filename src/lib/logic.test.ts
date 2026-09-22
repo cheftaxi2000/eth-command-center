@@ -222,7 +222,7 @@ describe('merge & sync', () => {
 });
 
 describe('search', () => {
-  const search = createSearch({ ...seed, todos: [todo('Skript Taylorreihen nachlesen')], exams: [], memos: [] });
+  const search = createSearch({ ...seed, todos: [todo('Skript Taylorreihen nachlesen')], exams: [], memos: [], links: [] });
   const top = (q: string) => search.search(q)[0];
 
   it('finds courses by name and alias', () => {
@@ -241,7 +241,7 @@ describe('search', () => {
   });
   it('ignores case and umlauts, and never invents content', () => {
     expect(search.search('PRUFUNG').some((h) => h.id === 'action:add-exam')).toBe(true);
-    expect(createSearch({ ...seed, todos: [], exams: [], memos: [] }).search('Taylor')).toEqual([]);
+    expect(createSearch({ ...seed, todos: [], exams: [], memos: [], links: [] }).search('Taylor')).toEqual([]);
   });
   it('guesses the course from free text for quick capture', () => {
     expect(detectCourse('Mechanik Übung 3 nachrechnen', seed.courses)).toBe('mechanik-1');

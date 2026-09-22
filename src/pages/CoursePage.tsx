@@ -1,13 +1,14 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { CourseSwitcher, GroupChoice, LinkButtons, ParityControl, linkKindLabel } from '../components/course';
+import { CourseSwitcher, GroupChoice, LinkButtons, LinkRow, ParityControl, linkKindLabel } from '../components/course';
 import { ItemRow, TodoComposer } from '../components/rows';
 import { neighbourCourse } from '../components/Shortcuts';
 import { toast } from '../components/toast';
 import { Accordion, Chip, Empty, Icon, RoomLink, SectionHead, cvar, cx } from '../components/ui';
 import { useUI } from '../components/ui-context';
-import { courseById, notesOf, useItems } from '../lib/data';
+import { courseById, notesOf, ownLinksOf, useItems } from '../lib/data';
 import { useLingerDone, useSwipe, useTitle } from '../lib/hooks';
+import { hostOf } from '../lib/links';
 import { useNow } from '../lib/now';
 import { roomUrl } from '../lib/rooms';
 import { KIND_LABEL, nextOccurrence } from '../lib/schedule';
@@ -16,14 +17,6 @@ import { DAY_LONG, DAY_SHORT, dueInfo, fmtRelDay, fmtTime } from '../lib/time';
 import type { Session } from '../types';
 import { MemoRow } from './Notes';
 import { StudyStart } from '../components/StudyTimer';
-
-const hostOf = (url: string) => {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-};
 
 export function CoursePage() {
   const { id = '' } = useParams();
@@ -63,6 +56,8 @@ export function CoursePage() {
   const next = nextOccurrence(now, [course], synced.prefs);
   const nextDue = mine.find((i) => !i.done && i.due && +i.due >= +now);
   const notes = notesOf(course.id);
+  const ownLinks = ownLinksOf(synced, course.id);
+  const addLink = () => ui.openLinkEditor({ mode: 'new', courseId: course.id });
   const memos = Object.values(synced.memos)
     .filter((m) => m.courseId === course.id)
     .sort((a, b) => b.updatedAt - a.updatedAt);
@@ -77,7 +72,7 @@ export function CoursePage() {
         <p className="eyebrow">{course.code} · {course.semester}</p>
         <h1>{course.name}</h1>
         <p className="course-head__sub">{course.instructor}</p>
-        <LinkButtons links={course.links} />
+        <LinkButtons links={[...course.links, ...ownLinks]} onAdd={addLink} />
         <StudyStart courseId={course.id} />
       </header>
 
@@ -167,16 +162,14 @@ export function CoursePage() {
       </section>
 
       <section aria-labelledby="h-res">
-        <SectionHead id="h-res" title="Ressourcen" />
-        {course.links.length + notes.length > 0 ? (
+        <SectionHead id="h-res" title="Ressourcen"
+          action={<button type="button" className="text-btn" onClick={addLink}>+ Link</button>} />
+        {course.links.length + ownLinks.length + notes.length > 0 ? (
           <ul className="panel list">
-            {course.links.map((l) => (
-              <li key={l.url}>
-                <a className="row row--link" href={l.url} target="_blank" rel="noopener noreferrer">
-                  <Icon name="external" size={20} />
-                  <span className="row__main"><span className="row__title">{l.label}</span><span className="row__meta"><span>{linkKindLabel(l.kind)} · {hostOf(l.url)}</span></span></span>
-                </a>
-              </li>
+            {course.links.map((l) => <LinkRow key={l.url} label={l.label} meta={`${linkKindLabel(l.kind)} · ${hostOf(l.url)}`} url={l.url} />)}
+            {ownLinks.map((l) => (
+              <LinkRow key={l.id} label={l.label} meta={`Eigener Link · ${hostOf(l.url)}`} url={l.url}
+                onEdit={() => ui.openLinkEditor({ mode: 'edit', id: l.id })} />
             ))}
             {notes.map((n) => (
               <li key={n.id}>
@@ -189,7 +182,7 @@ export function CoursePage() {
             ))}
           </ul>
         ) : (
-          <Empty>Für diesen Kurs sind in Notion noch keine Links oder Notizen hinterlegt.</Empty>
+          <Empty>Noch keine Links. Leg mit „+ Link“ ab, was du für {course.shortName} immer wieder öffnest – Moodle, Skript, Aufzeichnungen, Übungsblätter. Sie sind dann auf all deinen Geräten da.</Empty>
         )}
       </section>
 

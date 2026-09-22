@@ -191,6 +191,32 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
 - **Nebenbei behoben:** Auf der Kursseite lief ein Hook erst nach einem frühen `return` – Wechsel von einem
   unbekannten zu einem echten Kurs hätte die Hook-Reihenfolge gebrochen.
 
+## v7 – Eigene Links, Assistent kennt das Datum (2026-09-22)
+- **„Ich kann bei Ressourcen keine Links hinzufügen“:** Links kamen nur aus dem Notion-Snapshot. Neu ist der
+  synchronisierte Typ `links` (Merge + Löschmarken wie To-dos und Notizen). „+ Link“ bei *Ressourcen*, als
+  gestrichelte Taste unter dem Kurstitel und auf *Links & Admin*; Taste `R`; Stift neben jedem eigenen Link zum
+  Ändern oder Löschen (mit „Rückgängig“). Notion-Links bleiben unverändert.
+- **Einfach einfügen:** Adresse ohne `https://` wird ergänzt; ohne Namen benennt die App den Link selbst (Moodle,
+  Aufzeichnungen, CodeExpert, PDF nach Dateiname …); „Skript https://…“ in einem Rutsch eingefügt wird in Name und
+  Adresse getrennt (nur beim Einfügen, nie beim Tippen). Dieselbe Adresse zweimal im selben Fach wird abgelehnt.
+- **Sicherheit:** Nur http(s) wird gespeichert und als Link angezeigt – beim Eingeben *und* beim Lesen synchronisierter
+  Daten. Der geteilte Sync-Speicher ist öffentlich beschreibbar; ohne diese Prüfung könnte jemand dort eine
+  `javascript:`-Adresse ablegen, die beim Antippen Code in der App ausführt.
+- **Überall eingebunden:** Suche (eigene Links + Aktion „Link hinzufügen“), Backup, „Alles löschen“, AI-Kontext
+  (alle Links mit Adresse, damit der Assistent sie als klickbaren Link nennt) und neue Aktionen `create_link`,
+  `update_link`, `delete_link` (nur mit Bestätigung), `get_links`; der Regel-Modus versteht „Speichere den Link …
+  für Analysis als Skript“.
+- **Kurse ohne Links** werden auf *Links & Admin* mit einem „+“-Knopf angeboten.
+- **Assistent kannte das Datum nicht** („Um dir zu sagen, was du morgen hast, benötige ich das heutige Datum“):
+  Die App schickte mehrere Systemnachrichten; Geminis OpenAI-kompatible Schnittstelle beachtet offenbar nur eine.
+  Jetzt genau eine, die mit „Heute ist …, Morgen ist …“ beginnt; Nachschlage-Werkzeuge für Daten, die ohnehin im
+  Kontext stehen, bekommt das Modell nicht mehr.
+- Geprüft: 77 Tests; im Browser Anlegen, falsche Adresse, Doppelte, Einfügen mit Namen, Bearbeiten, Löschen +
+  Rückgängig, Taste `R`, Suche, Handy-Breite ohne seitliches Scrollen, und ein zweites Gerät, das einen neuen Link
+  nach ~13 s ohne Neuladen zeigt – alles gegen einen Wegwerf-Sync-Speicher, nie gegen die echten Daten.
+- Hinweis: Eine noch nicht aktualisierte App-Version kennt `links` nicht und lässt sie beim Hochladen weg; ein
+  aktualisiertes Gerät lädt sie beim nächsten Abgleich wieder hoch. Also auf allen Geräten „Aktualisieren“ tippen.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
@@ -203,4 +229,4 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
   Login oder clientseitige Verschlüsselung mit einer Passphrase pro Gerät – beides widerspricht dem
   ausdrücklichen Wunsch „ohne jegliche Tokens oder sonst etwas".
 - AI: Stundenplan-Schreibzugriff fehlt mangels eigenem `events`-Typ (einmalige Termine → datierte To-dos).
-  Gesprächsverlauf lebt nur, solange die App offen ist.
+  Der Gesprächsverlauf bleibt bewusst auf dem jeweiligen Gerät (nicht synchronisiert).

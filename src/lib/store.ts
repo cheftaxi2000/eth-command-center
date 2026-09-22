@@ -1,7 +1,8 @@
 import { useSyncExternalStore } from 'react';
+import { normalizeUrl, suggestLabel } from './links';
 import {
   canonical, defaultLocal, emptySynced, mergeSynced, migrateV1, normalizeSynced, uid,
-  type Exam, type LocalState, type Memo, type StudySession, type SyncedState, type Todo,
+  type Exam, type LocalState, type Memo, type OwnLink, type StudySession, type SyncedState, type Todo,
 } from './state';
 
 /**
@@ -98,7 +99,7 @@ const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state,
 const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
 const now = () => Date.now();
 
-type RecordKind = 'todos' | 'exams' | 'memos' | 'study';
+type RecordKind = 'todos' | 'exams' | 'memos' | 'links' | 'study';
 
 function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
   updateSynced((s) => {
@@ -219,6 +220,38 @@ export const actions = {
     put('memos', { ...memo, updatedAt: now() });
   },
 
+  /**
+   * An own link under "Ressourcen". Without a name it gets one from the address ("Moodle", the PDF's
+   * file name …). Returns null – and stores nothing – if `url` is not a web address.
+   */
+  addLink(input: { courseId: string; url: string; label?: string }): string | null {
+    const url = normalizeUrl(input.url);
+    if (!url) return null;
+    const id = uid('link');
+    const t = now();
+    put('links', { id, courseId: input.courseId, url, label: input.label?.trim() || suggestLabel(url), createdAt: t, updatedAt: t });
+    return id;
+  },
+  /** false if there is no such link or the new address is not a web address (then nothing changes). */
+  updateLink(id: string, patch: Partial<Pick<OwnLink, 'label' | 'url' | 'courseId'>>): boolean {
+    const cur = state.synced.links[id];
+    if (!cur) return false;
+    const url = patch.url === undefined ? cur.url : normalizeUrl(patch.url);
+    if (!url) return false;
+    const label = patch.label === undefined ? cur.label : patch.label.trim() || suggestLabel(url);
+    put('links', { ...cur, ...patch, url, label, updatedAt: now() });
+    return true;
+  },
+  /** Returns the removed link so the caller can offer "Rückgängig" */
+  deleteLink(id: string): OwnLink | undefined {
+    const cur = state.synced.links[id];
+    remove('links', [id]);
+    return cur;
+  },
+  restoreLink(link: OwnLink) {
+    put('links', { ...link, updatedAt: now() });
+  },
+
   /** A finished focus session (see lib/timer.ts) – synced like everything else. */
   logStudy(input: { courseId: string; start: number; minutes: number }): string {
     const id = uid('study');
@@ -231,10 +264,11 @@ export const actions = {
     return cur;
   },
 
-  /** Deletes all own to-dos, exams and notes – on every synced device */
+  /** Deletes all own to-dos, exams, notes and links – on every synced device */
   deleteAllOwn() {
     remove('todos', Object.keys(state.synced.todos));
     remove('exams', Object.keys(state.synced.exams));
     remove('memos', Object.keys(state.synced.memos));
+    remove('links', Object.keys(state.synced.links));
   },
 };

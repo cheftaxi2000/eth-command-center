@@ -21,8 +21,8 @@ export function SearchOverlay() {
   const listRef = useRef<HTMLUListElement>(null);
 
   const index = useMemo(
-    () => createSearch({ ...seed, todos: Object.values(synced.todos), exams: Object.values(synced.exams), memos: Object.values(synced.memos) }),
-    [synced.todos, synced.exams, synced.memos],
+    () => createSearch({ ...seed, todos: Object.values(synced.todos), exams: Object.values(synced.exams), memos: Object.values(synced.memos), links: Object.values(synced.links) }),
+    [synced.todos, synced.exams, synced.memos, synced.links],
   );
   const query = q.trim();
   const groups = useMemo(() => groupHits(query ? index.search(query) : index.browse(), query ? 5 : 20), [query, index]);
@@ -59,6 +59,7 @@ export function SearchOverlay() {
     else if (t.kind === 'external') window.open(t.url, '_blank', 'noopener,noreferrer');
     else if (t.kind === 'todo' || t.kind === 'exam') ui.openEditor({ mode: 'edit', kind: t.kind, id: t.id });
     else if (t.kind === 'memo') ui.openMemoEditor({ mode: 'edit', id: t.id });
+    else if (t.action === 'add-link') ui.openLinkEditor({ mode: 'new' });
     else ui.openEditor({ mode: 'new', kind: t.action === 'add-exam' ? 'exam' : 'todo' });
   };
 

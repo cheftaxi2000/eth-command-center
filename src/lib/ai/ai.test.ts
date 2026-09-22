@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { actions, getPersonal } from '../store';
-import { buildAIContext, buildAIDynamicContext } from './context';
+import { buildAIContext, buildAIDynamicContext, formatAIContext } from './context';
 import { executeAction, resolveSubject, runConfirmed, toolSpecs, validateAction } from './actions';
 import { geminiProvider, parseCompletion, toOpenAITools } from './gemini';
 import { parseIntent } from './mock';
@@ -269,5 +269,52 @@ describe('answering after a lookup', () => {
     const turn = await new AIService(provider).send('Was ist offen?');
     expect(round).toBe(2);
     expect(turn.reply).toBe('Du hast 4 offene Aufgaben.');
+  });
+});
+
+describe('links through the assistant', () => {
+  it('turns a sentence with an address into create_link – and a task that mentions a site stays a task', () => {
+    expect(parseIntent('Speichere den Link https://people.math.ethz.ch/~x/Skript.pdf für Analysis als Skript', NOW).calls[0]).toEqual({
+      action: 'create_link',
+      params: { url: 'https://people.math.ethz.ch/~x/Skript.pdf', label: 'Skript', subject: 'analysis-1' },
+    });
+    expect(parseIntent('moodle-app2.let.ethz.ch/course/view.php?id=28343', NOW).calls[0]).toEqual({
+      action: 'create_link',
+      params: { url: 'moodle-app2.let.ethz.ch/course/view.php?id=28343' },
+    });
+    expect(parseIntent('Füge eine Aufgabe hinzu: Serie 3 auf moodle.ethz.ch hochladen', NOW).calls[0].action).toBe('create_task');
+    expect(parseIntent('Schreib max@ethz.ch wegen Serie 3', NOW).calls.every((c) => c.action !== 'create_link')).toBe(true);
+  });
+
+  it('saves it for the right subject, names it, and puts it into the next context', () => {
+    const r = executeAction({ action: 'create_link', params: { url: 'moodle-app2.let.ethz.ch/course/view.php?id=1', subject: 'Mechanik' } });
+    expect(r).toMatchObject({ ok: true, message: 'Link „Moodle" unter Mechanik I gespeichert.' });
+    expect(buildAIDynamicContext().links.filter((l) => l.own)).toMatchObject([{ label: 'Moodle', subjectId: 'mechanik-1' }]);
+    expect(formatAIContext(buildAIContext())).toContain('Moodle · Mechanik I · https://moodle-app2.let.ethz.ch/course/view.php?id=1');
+    // the same address twice for one subject is refused, not duplicated
+    expect(executeAction({ action: 'create_link', params: { url: 'https://moodle-app2.let.ethz.ch/course/view.php?id=1', subject: 'mechanik-1' } }).ok).toBe(false);
+  });
+
+  it('never stores anything but http(s)', () => {
+    const r = executeAction({ action: 'create_link', params: { url: 'javascript:alert(1)' } });
+    expect(r.ok).toBe(false);
+    expect(Object.keys(getPersonal().synced.links)).toHaveLength(0);
+  });
+
+  it('deletes a link only after a yes', () => {
+    const { data } = executeAction({ action: 'create_link', params: { url: 'https://example.ch/formeln.pdf', subject: 'Analysis' } }) as { data: { id: string } };
+    expect(parseIntent('Lösch den Link formeln', NOW).calls[0]).toEqual({ action: 'delete_link', params: { id: data.id } });
+    const pending = executeAction({ action: 'delete_link', params: { id: data.id } });
+    expect(pending).toMatchObject({ ok: false, needsConfirmation: true, message: 'Soll ich den Link „formeln" wirklich löschen?' });
+    expect(getPersonal().synced.links[data.id]).toBeDefined();
+    expect(runConfirmed({ action: 'delete_link', params: { id: data.id } }).ok).toBe(true);
+    expect(getPersonal().synced.links[data.id]).toBeUndefined();
+  });
+
+  it('offers the model the link actions, with the address format in the description', () => {
+    const tools = toOpenAITools(toolSpecs().filter((t) => t.name === 'create_link'));
+    expect(tools[0].function.parameters.required).toEqual(['url']);
+    expect(tools[0].function.parameters.properties.url).toMatchObject({ type: 'string' });
+    expect(String((tools[0].function.parameters.properties.url as { description: string }).description)).toMatch(/https/);
   });
 });

@@ -1,7 +1,8 @@
 import MiniSearch from 'minisearch';
 import type { AdminLink, Course, Note, Task } from '../types';
+import { hostOf as host } from './links';
 import { KIND_LABEL } from './schedule';
-import { GENERAL_ID, type Exam, type Memo, type Todo } from './state';
+import { GENERAL_ID, type Exam, type Memo, type OwnLink, type Todo } from './state';
 import { DAY_LONG, DAY_SHORT, dueMoment, fmtDateShort, fmtTime, isAllDay, parseLocal } from './time';
 
 export type SearchType = 'course' | 'todo' | 'deadline' | 'exam' | 'session' | 'note' | 'memo' | 'topic' | 'instructor' | 'link' | 'action';
@@ -12,7 +13,7 @@ export type Target =
   | { kind: 'todo'; id: string }
   | { kind: 'exam'; id: string }
   | { kind: 'memo'; id: string }
-  | { kind: 'action'; action: 'add-todo' | 'add-exam' };
+  | { kind: 'action'; action: 'add-todo' | 'add-exam' | 'add-link' };
 
 export interface SearchDoc {
   id: string;
@@ -33,6 +34,7 @@ export interface SearchInput {
   todos: Todo[];
   exams: Exam[];
   memos: Memo[];
+  links: OwnLink[];
 }
 
 export const TYPE_LABEL: Record<SearchType, string> = {
@@ -54,14 +56,6 @@ const TYPE_BOOST: Partial<Record<SearchType, number>> = { course: 1.8, todo: 1.2
 
 export const normalize = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 export const slug = (s: string) => normalize(s).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-
-const host = (url: string) => {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return url;
-  }
-};
 
 const instructorNames = (s: string) =>
   s.split(',').map((p) => p.trim()).filter((p) => p && !/^u\.\s*a\.$/i.test(p));
@@ -85,7 +79,7 @@ export function detectCourse(text: string, courses: Course[]): string | null {
 }
 
 export function buildDocs(input: SearchInput): SearchDoc[] {
-  const { courses, tasks, notes, adminLinks, todos, exams, memos } = input;
+  const { courses, tasks, notes, adminLinks, todos, exams, memos, links } = input;
   const course = (id: string) => courses.find((c) => c.id === id);
   const about = (id: string) => {
     const c = course(id);
@@ -160,6 +154,18 @@ export function buildDocs(input: SearchInput): SearchDoc[] {
       text: `Notiz ${m.body} ${about(m.courseId)}`,
       courseId: m.courseId === GENERAL_ID ? undefined : m.courseId,
       target: { kind: 'memo', id: m.id },
+    });
+  }
+
+  for (const l of links) {
+    docs.push({
+      id: `ownlink:${l.id}`,
+      type: 'link',
+      title: l.label,
+      subtitle: `${course(l.courseId)?.name ?? 'Allgemein'} · ${host(l.url)}`,
+      text: `${l.url} Link Ressource ${about(l.courseId)}`,
+      courseId: l.courseId === GENERAL_ID ? undefined : l.courseId,
+      target: { kind: 'external', url: l.url },
     });
   }
 
@@ -239,6 +245,14 @@ export function buildDocs(input: SearchInput): SearchDoc[] {
       subtitle: 'Steht nicht in Notion – wird nur in dieser App gespeichert',
       text: 'Prüfung Prüfungen Klausur Exam Termin hinzufügen Assessment Session',
       target: { kind: 'action', action: 'add-exam' },
+    },
+    {
+      id: 'action:add-link',
+      type: 'action',
+      title: 'Link hinzufügen',
+      subtitle: 'Unter Ressourcen – Moodle, Skript, Aufzeichnungen …',
+      text: 'Link Links URL Adresse Ressource Ressourcen Webseite Lesezeichen Bookmark hinzufügen speichern',
+      target: { kind: 'action', action: 'add-link' },
     },
   );
   return docs;

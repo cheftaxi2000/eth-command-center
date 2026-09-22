@@ -156,6 +156,15 @@
 .linkbtn { display: inline-flex; align-items: center; gap: 7px; flex: none; min-height: 40px; padding: 0 14px; border-radius: 20px; background: var(--surface); border: 1px solid var(--line-strong); font-size: 0.9375rem; font-weight: 600; }
 .linkbtn .icon { color: var(--ink-3); }
 @media (hover: hover) { .linkbtn:hover { background: var(--surface-2); } }
+.linkbtn--add { border-style: dashed; background: transparent; color: var(--ink-2); font-weight: 550; }
+.linkbtn--add .icon { color: currentColor; }
+
+/* own links: the row opens the link, the pencil beside it edits it */
+.linkrow { display: flex; align-items: center; }
+.linkrow > .row { flex: 1; min-width: 0; }
+.linkrow .row__title { overflow-wrap: anywhere; }
+.linkrow__edit { margin-right: 6px; color: var(--ink-3); }
+.links-missing { margin-top: 36px; display: flex; flex-direction: column; gap: 10px; }
 .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .facts > div { padding: 14px 18px; }
 .facts > div + div { border-left: 1px solid var(--line); }
@@ -278,6 +287,8 @@
 .form { display: flex; flex-direction: column; gap: 18px; }
 .field { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 .field > span { font-size: 0.875rem; font-weight: 600; color: var(--ink-2); }
+.field > .field__error { color: var(--danger); font-weight: 550; }
+.field__opt { font-style: normal; font-weight: 450; color: var(--ink-3); margin-left: 4px; }
 .field input, .field select, .field-row input { min-height: 48px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--bg); font-size: 1rem; width: 100%; }
 .field textarea { padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--bg); font: inherit; font-size: 1rem; width: 100%; resize: vertical; min-height: 120px; }
 .field-row { display: flex; gap: 12px; }

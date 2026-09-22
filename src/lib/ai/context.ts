@@ -1,3 +1,4 @@
+import { seed } from '../../data/seed';
 import { COURSES, buildItems, targetOf } from '../data';
 import { getNow } from '../now';
 import { KIND_LABEL, freeSlots, occurrencesOn } from '../schedule';
@@ -63,6 +64,16 @@ export interface AINote {
   updatedAt: string;
 }
 
+/** A link the student can open – Notion's (read-only) or an own one (has an id, editable). */
+export interface AILink {
+  id?: string;
+  label: string;
+  url: string;
+  subject: string;
+  subjectId: string;
+  own: boolean;
+}
+
 export interface AIScheduleDay {
   date: string;
   weekday: string;
@@ -89,6 +100,7 @@ export interface AIDynamicContext {
   counts: { openTasks: number; overdue: number; dueWithinHorizon: number; notes: number };
   tasks: AITask[];
   notes: AINote[];
+  links: AILink[];
   schedule: AIScheduleDay[];
   /** Focus-timer time studied this ISO week, and a block running right now (if any). */
   study: { weekMinutes: number; bySubject: { subject: string; minutes: number }[]; running: { subject: string; endsAt: string } | null };
@@ -103,7 +115,8 @@ export interface AIContext {
 const CONSTRAINTS = [
   'Der Stundenplan (Vorlesungen und Übungen) stammt aus einem nur lesbaren Notion-Snapshot und kann nicht geändert werden.',
   'Aufgaben aus Notion können abgehakt, aber nicht bearbeitet oder gelöscht werden.',
-  'Eigene To-dos, eigene Notizen und eigene Prüfungstermine können angelegt, geändert und gelöscht werden.',
+  'Eigene To-dos, eigene Notizen, eigene Links und eigene Prüfungstermine können angelegt, geändert und gelöscht werden.',
+  'Links aus Notion sind nur lesbar. Links werden nur mit http(s)-Adresse gespeichert.',
   'Löschen wird nie ohne ausdrückliche Bestätigung ausgeführt.',
 ];
 
@@ -179,6 +192,15 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
       updatedAt: toLocalDate(new Date(m.updatedAt)),
     }));
 
+  const links: AILink[] = [
+    ...seed.adminLinks.map((l) => ({ label: l.label, url: l.url, subject: 'Allgemein', subjectId: GENERAL_ID, own: false })),
+    ...COURSES.flatMap((c) => c.links.map((l) => ({ label: l.label, url: l.url, subject: c.name, subjectId: c.id, own: false }))),
+    ...Object.values(synced.links)
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .slice(0, max)
+      .map((l) => ({ id: l.id, label: l.label, url: l.url, subject: targetOf(l.courseId).name, subjectId: l.courseId, own: true })),
+  ];
+
   // Weekends included: no lectures, but that is exactly when a lot of studying happens.
   const schedule: AIScheduleDay[] = Array.from({ length: horizon }, (_, d) => addDays(now, d))
     .map((day) => ({
@@ -216,6 +238,7 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
     },
     tasks,
     notes,
+    links,
     schedule,
     study,
   };
@@ -254,6 +277,9 @@ export function formatAIContext(ctx: AIContext): string {
   lines.push('', `## Eigene Notizen (${d.counts.notes})`);
   if (d.notes.length === 0) lines.push('- keine');
   for (const n of d.notes) lines.push(`- [${n.id}] ${n.title} · ${n.subject}${n.body ? ` · ${n.body.replace(/\s+/g, ' ').slice(0, 200)}` : ''}`);
+
+  lines.push('', '## Links');
+  for (const l of d.links) lines.push(`- ${l.own ? `[${l.id}] ` : ''}${l.label} · ${l.subject} · ${l.url}${l.own ? '' : ' · aus Notion, nur lesbar'}`);
 
   lines.push('', '## Stundenplan');
   for (const day of d.schedule) {

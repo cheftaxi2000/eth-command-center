@@ -4,6 +4,7 @@ import { Assistant } from './components/Assistant';
 import { StudyTimerHost } from './components/StudyTimer';
 import { EditorSheet } from './components/EditorSheet';
 import { MemoSheet } from './components/MemoSheet';
+import { LinkSheet } from './components/LinkSheet';
 import { AiFab, Fab, SideNav, TabBar } from './components/Nav';
 import { SearchOverlay } from './components/SearchOverlay';
 import { ShortcutsSheet, useGlobalShortcuts } from './components/Shortcuts';
@@ -57,6 +58,7 @@ function Shell({ children }: { children: ReactNode }) {
       <SearchOverlay />
       <EditorSheet />
       <MemoSheet />
+      <LinkSheet />
       <Assistant />
       <StudyTimerHost />
       <ShortcutsSheet />

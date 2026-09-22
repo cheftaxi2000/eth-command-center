@@ -10,6 +10,10 @@ export const COURSES = seed.courses;
 export const courseById = (id: string): Course | undefined => COURSES.find((c) => c.id === id);
 export const notesOf = (courseId: string) => seed.notes.filter((n) => n.courseId === courseId);
 
+/** Own links of a course (or of "Allgemein") in the order they were added. */
+export const ownLinksOf = (s: SyncedState, courseId: string) =>
+  Object.values(s.links).filter((l) => l.courseId === courseId).sort((a, b) => a.createdAt - b.createdAt);
+
 /** Anything a to-do can belong to: the courses plus "Allgemein" (admin stuff, no course) */
 export interface Target {
   id: string;

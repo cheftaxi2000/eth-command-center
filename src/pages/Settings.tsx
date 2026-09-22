@@ -52,7 +52,7 @@ export function SettingsPage() {
     }
   };
 
-  const ownCount = Object.keys(synced.todos).length + Object.keys(synced.exams).length + Object.keys(synced.memos).length;
+  const ownCount = Object.keys(synced.todos).length + Object.keys(synced.exams).length + Object.keys(synced.memos).length + Object.keys(synced.links).length;
 
   return (
     <>
@@ -97,7 +97,7 @@ export function SettingsPage() {
       <section>
         <h2 className="h-section spaced">Backup</h2>
         <div className="panel panel--pad">
-          <p className="hint hint--top">Deine To-dos, Notizen, Prüfungen und Häkchen als Datei – zusätzlich zum Sync oder falls du ihn nicht nutzt.</p>
+          <p className="hint hint--top">Deine To-dos, Notizen, Links, Prüfungen und Häkchen als Datei – zusätzlich zum Sync oder falls du ihn nicht nutzt.</p>
           <div className="btn-row">
             <button type="button" className="btn" onClick={exportBackup}>Backup herunterladen</button>
             <button type="button" className="btn" onClick={() => fileRef.current?.click()}>Backup einlesen</button>
@@ -119,7 +119,7 @@ export function SettingsPage() {
           <dl className="kv">
             <dt>Quelle</dt><dd>Notion „UNI“ – nur gelesen, nie verändert</dd>
             <dt>Stand</dt><dd>{seed.meta.snapshotAt}</dd>
-            <dt>Eigene Einträge</dt><dd>{Object.keys(synced.todos).length} To-dos · {Object.keys(synced.memos).length} Notizen · {Object.keys(synced.exams).length} Prüfungen</dd>
+            <dt>Eigene Einträge</dt><dd>{Object.keys(synced.todos).length} To-dos · {Object.keys(synced.memos).length} Notizen · {Object.keys(synced.links).length} Links · {Object.keys(synced.exams).length} Prüfungen</dd>
             <dt>App-Version</dt><dd>{__BUILD_TIME__}</dd>
           </dl>
           {ownCount > 0 && (confirm ? (
@@ -131,7 +131,7 @@ export function SettingsPage() {
             </div>
           ) : (
             <div className="btn-row">
-              <button type="button" className="btn" onClick={() => setConfirm(true)}>Alle eigenen To-dos, Notizen & Prüfungen löschen</button>
+              <button type="button" className="btn" onClick={() => setConfirm(true)}>Alle eigenen To-dos, Notizen, Links & Prüfungen löschen</button>
             </div>
           ))}
         </div>

@@ -1,4 +1,5 @@
 import { COURSES, buildItems, targetOf } from '../data';
+import { normalizeUrl } from '../links';
 import { getNow } from '../now';
 import { GENERAL_ID } from '../state';
 import { actions as store, getPersonal } from '../store';
@@ -18,7 +19,7 @@ import { buildAIDynamicContext, buildAIPermanentContext } from './context';
  * gets it back as "pending" and has to ask the user first (see service.ts).
  */
 
-export type ParamType = 'string' | 'text' | 'boolean' | 'integer' | 'date' | 'due' | 'datetime' | 'subject' | 'id' | 'enum';
+export type ParamType = 'string' | 'text' | 'boolean' | 'integer' | 'date' | 'due' | 'datetime' | 'subject' | 'id' | 'enum' | 'url';
 
 export interface ParamDef {
   type: ParamType;
@@ -136,6 +137,12 @@ function coerce(name: string, def: ParamDef, raw: unknown, errors: string[]): un
         return undefined;
       }
       return s;
+    }
+    case 'url': {
+      // Same rule as the link sheet: http(s) only – "javascript:" & co. never reach the store
+      const url = normalizeUrl(String(raw));
+      if (!url) errors.push(`"${name}" muss eine Web-Adresse (http/https) sein.`);
+      return url ?? undefined;
     }
   }
 }
@@ -408,6 +415,74 @@ export const ACTIONS: Record<string, ActionDef> = {
     },
   },
 
+  get_links: {
+    name: 'get_links',
+    description: 'Links lesen (aus Notion und eigene), optional nach Fach.',
+    params: { subject: { type: 'subject', description: 'Fach' } },
+    readOnly: true,
+    run: (p) => {
+      let list = buildAIDynamicContext({ maxItems: 200 }).links;
+      if (p.subject) list = list.filter((l) => l.subjectId === p.subject);
+      return { ok: true, action: 'get_links', message: `${list.length} Links gefunden.`, data: list };
+    },
+  },
+
+  create_link: {
+    name: 'create_link',
+    description: 'Eigenen Link unter "Ressourcen" speichern (Moodle, Skript, Aufzeichnungen …). Ohne Namen wird einer aus der Adresse abgeleitet.',
+    params: {
+      url: { type: 'url', description: 'Die Adresse', required: true },
+      label: { type: 'string', description: 'Kurzer Name, z. B. "Skript"' },
+      subject: { type: 'subject', description: 'Fach; ohne Angabe "Allgemein"' },
+    },
+    run: (p) => {
+      const courseId = (p.subject as string) ?? GENERAL_ID;
+      const url = p.url as string;
+      const twin = Object.values(getPersonal().synced.links).find((l) => l.courseId === courseId && l.url === url);
+      if (twin) return fail('create_link', `Den Link gibt es bei ${subjectName(courseId)} schon: „${twin.label}".`);
+      const id = store.addLink({ courseId, url, label: p.label as string | undefined });
+      const saved = id ? getPersonal().synced.links[id] : undefined;
+      if (!saved) return fail('create_link', 'Das ist keine gültige Web-Adresse.');
+      return { ok: true, action: 'create_link', message: `Link „${saved.label}" unter ${subjectName(courseId)} gespeichert.`, data: { id } };
+    },
+  },
+
+  update_link: {
+    name: 'update_link',
+    description: 'Einen eigenen Link ändern: Name, Adresse oder Fach.',
+    params: {
+      id: { type: 'id', description: 'Id des Links', required: true },
+      label: { type: 'string', description: 'Neuer Name' },
+      url: { type: 'url', description: 'Neue Adresse' },
+      subject: { type: 'subject', description: 'Neues Fach' },
+    },
+    run: (p) => {
+      const id = p.id as string;
+      const link = getPersonal().synced.links[id];
+      if (!link) return fail('update_link', `Es gibt keinen eigenen Link mit der Id "${id}". Links aus Notion lassen sich nicht ändern.`);
+      store.updateLink(id, {
+        ...(p.label ? { label: p.label as string } : {}),
+        ...(p.url ? { url: p.url as string } : {}),
+        ...(p.subject ? { courseId: p.subject as string } : {}),
+      });
+      return { ok: true, action: 'update_link', message: `Link „${getPersonal().synced.links[id]?.label ?? link.label}" geändert.`, data: { id } };
+    },
+  },
+
+  delete_link: {
+    name: 'delete_link',
+    description: 'Einen eigenen Link löschen. Braucht eine Bestätigung.',
+    params: { id: { type: 'id', description: 'Id des Links', required: true } },
+    confirm: true,
+    run: (p) => {
+      const id = p.id as string;
+      const link = getPersonal().synced.links[id];
+      if (!link) return fail('delete_link', `Es gibt keinen eigenen Link mit der Id "${id}". Links aus Notion lassen sich nicht löschen.`);
+      store.deleteLink(id);
+      return { ok: true, action: 'delete_link', message: `Link „${link.label}" gelöscht.`, data: { id } };
+    },
+  },
+
   create_exam: {
     name: 'create_exam',
     description: 'Eigenen Prüfungstermin eintragen. Der reguläre Stundenplan ist nicht änderbar.',
@@ -461,6 +536,7 @@ function confirmationQuestion(action: string, params: Record<string, unknown>): 
   const id = params.id as string | undefined;
   if (action === 'delete_task') return `Soll ich die Aufgabe „${id ? (item(id)?.title ?? id) : ''}" wirklich löschen?`;
   if (action === 'delete_note') return `Soll ich die Notiz „${id ? (getPersonal().synced.memos[id]?.title ?? id) : ''}" wirklich löschen?`;
+  if (action === 'delete_link') return `Soll ich den Link „${id ? (getPersonal().synced.links[id]?.label ?? id) : ''}" wirklich löschen?`;
   return `Soll ich "${action}" wirklich ausführen?`;
 }
 

@@ -6,7 +6,8 @@ export const cvar = (color: string) => ({ '--c': color }) as CSSProperties;
 export type IconName =
   | 'today' | 'week' | 'tasks' | 'courses' | 'search' | 'link' | 'settings' | 'person' | 'pin'
   | 'chevron-right' | 'chevron-left' | 'chevron-down' | 'check' | 'plus' | 'external' | 'close'
-  | 'trash' | 'copy' | 'flag' | 'note' | 'cloud' | 'cloud-off' | 'alert' | 'keyboard' | 'calendar' | 'spark' | 'send' | 'mic' | 'stop' | 'arrow-up' | 'timer';
+  | 'trash' | 'copy' | 'flag' | 'note' | 'cloud' | 'cloud-off' | 'alert' | 'keyboard' | 'calendar' | 'spark' | 'send' | 'mic' | 'stop' | 'arrow-up' | 'timer'
+  | 'edit';
 
 const PATHS: Record<IconName, ReactNode> = {
   today: (<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>),
@@ -39,6 +40,7 @@ const PATHS: Record<IconName, ReactNode> = {
   stop: <rect x="6" y="6" width="12" height="12" rx="2.5" />,
   'arrow-up': <path d="M12 19V5M5 12l7-7 7 7" />,
   timer: (<><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M10 2h4M12 2v3" /></>),
+  edit: (<><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></>),
   keyboard: (<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10" /></>),
 };
 

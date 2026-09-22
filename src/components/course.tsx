@@ -55,18 +55,42 @@ const LINK_KIND: Record<CourseLink['kind'], string> = {
 };
 export const linkKindLabel = (k: CourseLink['kind']) => LINK_KIND[k];
 
-/** The course's external links as big tap targets right under the title */
-export function LinkButtons({ links }: { links: CourseLink[] }) {
-  if (links.length === 0) return null;
+/** The course's links (Notion's and own ones) as big tap targets right under the title, plus "+ Link". */
+export function LinkButtons({ links, onAdd }: { links: { label: string; url: string }[]; onAdd?: () => void }) {
+  // The same address saved twice (e.g. on two devices at once) is still one button up here
+  const unique = links.filter((l, i) => links.findIndex((x) => x.url === l.url) === i);
+  if (unique.length === 0 && !onAdd) return null;
   return (
     <div className="linkbtns" data-noswipe>
-      {links.map((l) => (
+      {unique.map((l) => (
         <a key={l.url} className="linkbtn" href={l.url} target="_blank" rel="noopener noreferrer">
           {l.label}
           <Icon name="external" size={15} />
         </a>
       ))}
+      {onAdd && (
+        <button type="button" className="linkbtn linkbtn--add" onClick={onAdd}>
+          <Icon name="plus" size={15} />Link
+        </button>
+      )}
     </div>
+  );
+}
+
+/** One link as a list row. Own links get an edit button beside them; Notion's stay read-only. */
+export function LinkRow({ label, meta, url, onEdit }: { label: string; meta: string; url: string; onEdit?: () => void }) {
+  return (
+    <li className={onEdit ? 'linkrow' : undefined}>
+      <a className="row row--link" href={url} target="_blank" rel="noopener noreferrer">
+        <Icon name="external" size={20} />
+        <span className="row__main"><span className="row__title">{label}</span><span className="row__meta"><span>{meta}</span></span></span>
+      </a>
+      {onEdit && (
+        <button type="button" className="icon-btn linkrow__edit" aria-label={`${label} bearbeiten`} title="Bearbeiten" onClick={onEdit}>
+          <Icon name="edit" size={18} />
+        </button>
+      )}
+    </li>
   );
 }
 

@@ -8,12 +8,13 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 - **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – Formeln, Ideen, Dinge zum Merken
 - **Woche** – Stundenplan als klares Raster: ein Rechteck pro Termin, Fachfarbe fürs Fach, Schraffur + Label für Übung vs. Vorlesung; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
+- **Eigene Links** – „+ Link“ bei *Ressourcen*, unter dem Kurstitel oder auf *Links & Admin* (Taste `R`): Adresse einfügen, fertig. `https://` und Name ergänzt die App selbst (Moodle, Aufzeichnungen, PDF-Name …); Stift daneben zum Ändern/Löschen; synchronisiert wie alles andere
 - **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene (nicht nur die nächsten 7 Tage) und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
 - **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
 - **Assistent** – Vollbild-Chat (`C`), versteht Sätze wie „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2“, antwortet aus deinen echten Daten, **Mikrofon** zum Diktieren (siehe unten)
 - **Lernzeit** – Fokus-Timer 25/50 min pro Fach (Kursseite, „Heute“, Taste `T` oder per Assistent), Wochenbilanz pro Fach auf „Heute“
 - **Kalender-Export** – Stundenplan der nächsten 8 Wochen + alle offenen Abgaben als .ics, mit Erinnerungen am Vortag (Wochenplan → „In Kalender“)
-- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `R` Link, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
 - **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
 
 ## Notion bleibt unverändert (read-only)
@@ -21,7 +22,7 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 - Die Notion-Daten liegen als lesend gezogener Snapshot in [`src/data/seed.ts`](src/data/seed.ts) (Stand 2026-09-19).
 - Die App schreibt **nie** in Notion. Eine Content-Security-Policy erlaubt technisch nur Verbindungen
   zur App selbst und – für den Sync – zu `kvdb.io`. Anfragen an Notion werden vom Browser blockiert.
-- Eigene Daten (To-dos, Notizen, Prüfungen, Häkchen, Stundenplan-Wahl) liegen im Browser und werden automatisch
+- Eigene Daten (To-dos, Notizen, Links, Prüfungen, Häkchen, Stundenplan-Wahl) liegen im Browser und werden automatisch
   über einen Sync-Code abgeglichen (siehe „Sync zwischen Laptop und iPad“).
 - Nicht in Notion und deshalb **nicht erfunden**: Prüfungstermine, Credits, Noten, Vorlesungsthemen,
   deine Mechanik-Übungsgruppe (in der App einstellbar). Die Wochen der 2-wöchentlichen Analysis-Vorlesung
@@ -74,7 +75,8 @@ Offline erfasste Änderungen werden automatisch nachgeholt, sobald wieder eine V
 **Öffnen:** Taste `C`, „Assistent" in der Seitenleiste oder auf iPad/Handy der runde Funken-Knopf über dem „+".
 Er übernimmt den ganzen Bildschirm, formatiert Antworten (Listen, fett, Code) und behält den Verlauf auf diesem
 Gerät („Neuer Chat" leert ihn). Schreib z. B. „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2",
-„Ich habe morgen zwei Stunden Zeit – was soll ich lernen?" (er kennt deine freien Lücken) oder „Starte 25 Minuten Analysis".
+„Ich habe morgen zwei Stunden Zeit – was soll ich lernen?" (er kennt deine freien Lücken), „Starte 25 Minuten Analysis"
+oder „Speichere den Link https://… für Analysis als Skript".
 
 **Mikrofon:** Mikro-Knopf in der Eingabe → sprechen → der Text erscheint live im Feld, du prüfst und schickst ab.
 Chrome, Edge und Safari erkennen die Sprache selbst (Schweizer Hochdeutsch, sonst Hochdeutsch). Wo der Browser das
@@ -129,6 +131,7 @@ src/
   lib/ai/             Assistent: Context, Actions, Gemini, lokaler Schlüssel, Regel-Modus, Chat-Verlauf
   lib/voice.ts        Diktieren (Web Speech API, sonst Aufnahme → WAV → Gemini)
   lib/markdown.ts     sicherer Markdown-Parser für Antworten (kein innerHTML)
+  lib/links.ts        eigene Links: Adresse prüfen (nur http/s), Namen vorschlagen
   lib/timer.ts        Lern-Timer und Wochenbilanz
   lib/ics.ts          Kalender-Export mit Erinnerungen
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag

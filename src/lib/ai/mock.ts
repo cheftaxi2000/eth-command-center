@@ -77,7 +77,7 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const fragment = (t: string) =>
   t
     .replace(/[.!?]+$/, '')
-    .replace(/\b(bitte|lösche?|loesche?|entferne|verschieb\w*|schieb\w*|hake?|ab|ist|sind|erledigt|fertig|die|der|das|den|meine[nm]?|aufgabe|to-?do|notiz|auf|nach|bis)\b/g, ' ')
+    .replace(/\b(bitte|lösche?|loesche?|entferne|verschieb\w*|schieb\w*|hake?|ab|ist|sind|erledigt|fertig|die|der|das|den|meine[nm]?|aufgabe|to-?do|notiz|link|auf|nach|bis)\b/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -109,6 +109,26 @@ function findNotes(text: string, subjectId: string | null) {
   return subjectId ? all.filter((m) => m.courseId === subjectId) : [];
 }
 
+function findLinks(text: string, subjectId: string | null) {
+  const t = text.toLowerCase();
+  const all = Object.values(getPersonal().synced.links);
+  const byLabel = all.filter((l) => l.label.length > 2 && t.includes(l.label.toLowerCase()));
+  if (byLabel.length > 0) return byLabel;
+  const rest = fragment(t);
+  if (rest.length > 2) {
+    const partial = all.filter((l) => l.label.toLowerCase().includes(rest));
+    if (partial.length > 0) return partial;
+  }
+  return subjectId ? all.filter((l) => l.courseId === subjectId) : [];
+}
+
+/** A web address in the sentence – with or without "https://" ("moodle-app2.let.ethz.ch/…"), not an e-mail. */
+function findUrl(text: string): string | undefined {
+  const m = /https?:\/\/\S+|\bwww\.\S+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:ch|com|org|net|de|io|edu)\b(?:\/\S*)?/i.exec(text);
+  if (!m || text[m.index - 1] === '@') return undefined;
+  return m[0].replace(/[.,;:!?)»“"]+$/, '');
+}
+
 /** Which subject the sentence is about, found via the course aliases in data/seed.ts. */
 function detectSubject(text: string): string | null {
   const words = text.toLowerCase().replace(/[.,;:!?]/g, ' ').split(/[\s-]+/);
@@ -128,14 +148,24 @@ export interface MockIntent {
 
 /** Sentence → structured call(s). Exported so tests can assert the intent without running it. */
 export function parseIntent(text: string, now: Date = getNow()): MockIntent {
-  const t = text.toLowerCase();
-  const subject = detectSubject(text);
-  const when = parseWhen(text, now);
-  const afterColon = text.includes(':') ? text.slice(text.indexOf(':') + 1).trim() : null;
+  const url = findUrl(text);
+  // Without the address: "ch", "id" or "2026" inside a URL must not read as a subject or a date
+  const plain = url ? text.replace(url, ' ') : text;
+  const t = plain.toLowerCase();
+  const subject = detectSubject(plain);
+  const when = parseWhen(plain, now);
+  const colon = text.search(/:(?!\/\/)/);
+  const afterColon = colon >= 0 ? text.slice(colon + 1).trim() : null;
   const deadline = when ? (when.time ? `${when.date}T${when.time}` : when.date) : undefined;
 
   // --- delete (destructive: the action layer will ask before doing it) ---
   if (/\b(lösch|loesch|entferne|weg damit)/.test(t)) {
+    if (/\blinks?\b/.test(t)) {
+      const hit = findLinks(plain, subject)[0];
+      return hit
+        ? { reply: `Ich lösche den Link „${hit.label}".`, calls: [{ action: 'delete_link', params: { id: hit.id } }] }
+        : { reply: 'Ich finde keinen passenden eigenen Link.', calls: [] };
+    }
     if (/notiz/.test(t)) {
       const hit = findNotes(text, subject)[0];
       return hit
@@ -178,6 +208,18 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
     };
   }
 
+  // --- save a link: an address and the word "Link", an address on its own, or "speicher/füg … hinzu"
+  //     with an address – unless the sentence is about a task or note that merely mentions a site ---
+  const aboutItem = /\b(aufgabe|to-?do|notiz|serie|blatt|übung|uebung|prüfung|abgabe)\b/.test(t);
+  const saveVerb = /\b(speicher\w*|merk\w*|füge?|fuege?|hinzu|leg\w*|ablegen)\b/.test(t);
+  if (url && (/\blinks?\b/.test(t) || !/[a-zäöü]/.test(t) || (saveVerb && !aboutItem))) {
+    const label = plain.match(/\bals\s+[„"]?([^"“”]+?)[“"”]?\s*[.!]?\s*$/i)?.[1]?.trim();
+    return {
+      reply: 'Ich speichere den Link.',
+      calls: [{ action: 'create_link', params: { url, ...(label ? { label } : {}), ...(subject ? { subject } : {}) } }],
+    };
+  }
+
   // --- create a note ---
   if (/\bnotiz(en)?\b/.test(t) && /\b(schreib|notier|füge|fuege|mach|erstell|neue)/.test(t)) {
     const body = afterColon ?? cleanTitle(text, [when?.phrase ?? '']);
@@ -195,6 +237,11 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
       reply: `Ich lege „${title}" an${deadline ? `, fällig ${deadline}` : ''}.`,
       calls: [{ action: 'create_task', params: { title, ...(subject ? { subject } : {}), ...(deadline ? { deadline } : {}) } }],
     };
+  }
+
+  // --- questions about links ---
+  if (/\blinks?\b|\bwo finde ich\b/.test(t)) {
+    return { reply: 'Deine Links:', calls: [{ action: 'get_links', params: subject ? { subject } : {} }] };
   }
 
   // --- questions about the timetable ---
@@ -224,7 +271,7 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
   }
 
   return {
-    reply: 'Das habe ich nicht verstanden. Ich kann Aufgaben und Notizen anlegen, ändern, löschen und deinen Stundenplan vorlesen.',
+    reply: 'Das habe ich nicht verstanden. Ich kann Aufgaben, Notizen und Links anlegen, ändern, löschen und deinen Stundenplan vorlesen.',
     calls: [],
   };
 }
