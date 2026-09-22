@@ -1,5 +1,6 @@
 import { ACTIONS, executeAction, runConfirmed, toolSpecs, type ActionCall, type ActionResult } from './actions';
-import { buildAIContext, formatAIContext, type AIContextOptions } from './context';
+import { buildAIContext, formatAIContext, type AIContext, type AIContextOptions } from './context';
+import { DAY_LONG, addDays, parseLocal } from '../time';
 import { geminiProvider } from './gemini';
 import { getAIKey } from './key';
 import { mockProvider } from './mock';
@@ -38,6 +39,22 @@ const SYSTEM = [
   'Für Lernpläne nutze die freien Zeitfenster (free) aus dem Stundenplan und die nächsten Fristen.',
 ].join(' ');
 
+/** Today's date as the very first thing the model reads – so "morgen" can never be a question. */
+function systemPrompt(ctx: AIContext, extra?: string): string {
+  const d = ctx.dynamic.today;
+  const tomorrow = addDays(parseLocal(d.date), 1);
+  const anchor = `Heute ist ${d.weekday}, ${d.date}, ${d.time} Uhr (Europe/Zurich, KW ${d.isoWeek}). Morgen ist ${DAY_LONG[tomorrow.getDay()]}, ${toIso(tomorrow)}.`;
+  return [anchor, SYSTEM, extra].filter(Boolean).join('\n\n');
+}
+const toIso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+/**
+ * Tools actually offered to the model. Lookups whose data is already in the context (tasks,
+ * schedule, subjects, study time) are left out: offered, a model tends to "look up" instead of
+ * answering. get_notes stays – note texts are not in the context.
+ */
+const modelTools = () => toolSpecs().filter((t) => !t.readOnly || t.name === 'get_notes');
+
 export class AIService {
   constructor(private readonly provider: AIProvider) {}
 
@@ -48,13 +65,10 @@ export class AIService {
   /** One user turn. History is optional; the caller owns the conversation. */
   async send(userText: string, history: AIMessage[] = [], ctxOpts: AIContextOptions = {}): Promise<AITurn> {
     const context = buildAIContext(ctxOpts); // rebuilt here, every single time
-    const messages: AIMessage[] = [
-      { role: 'system', content: SYSTEM },
-      ...history,
-      { role: 'user', content: userText },
-    ];
+    const conversation: AIMessage[] = [...history.filter((m) => m.role !== 'system'), { role: 'user', content: userText }];
+    const messages: AIMessage[] = [{ role: 'system', content: systemPrompt(context) }, ...conversation];
 
-    const reply = await this.provider.complete({ messages, contextText: formatAIContext(context), tools: toolSpecs() });
+    const reply = await this.provider.complete({ messages, contextText: formatAIContext(context), tools: modelTools() });
 
     const performed: ActionResult[] = [];
     const pending: AITurn['pending'] = [];
@@ -71,7 +85,8 @@ export class AIService {
     if (!text && reads.length > 0 && pending.length === 0) {
       const results = reads.map((r) => `${r.action}: ${JSON.stringify(r.data)}`).join('\n').slice(0, 30_000);
       const second = await this.provider.complete({
-        messages: [...messages, { role: 'system', content: `Ergebnisse deiner Abfragen:\n${results}\nBeantworte jetzt die Frage des Nutzers.` }],
+        // Results go into the one system prompt; the user's question stays the last message.
+        messages: [{ role: 'system', content: systemPrompt(context, `Ergebnisse deiner Abfragen:\n${results}\nBeantworte damit die letzte Frage des Nutzers.`) }, ...conversation],
         contextText: formatAIContext(context),
         tools: [],
       });

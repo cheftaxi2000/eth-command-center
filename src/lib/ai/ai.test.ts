@@ -199,7 +199,9 @@ describe('Gemini provider (Google simulated, no real key)', () => {
     expect(url).not.toContain('AIza');
     expect((init.headers as Record<string, string>).Authorization).toBe('Bearer AIzaTEST');
     const body = JSON.parse(init.body as string);
-    expect(body.messages.map((m: { role: string; content: string }) => m.content.slice(0, 7))).toEqual(['SYS', 'Aktuell', 'Neue Au']);
+    // exactly one system message, first, holding instructions AND the live app state
+    expect(body.messages.map((m: { role: string }) => m.role)).toEqual(['system', 'user']);
+    expect(body.messages[0].content).toMatch(/^SYS[\s\S]*Aktueller Stand der App:\n\nCTX$/);
     expect(body.tools.some((t: { function: { name: string } }) => t.function.name === 'create_task')).toBe(true);
     vi.unstubAllGlobals();
   });
@@ -232,6 +234,22 @@ describe('Gemini provider (Google simulated, no real key)', () => {
   });
 });
 
+describe('what the model is told', () => {
+  it('starts with today and tomorrow, in one system message, and offers no redundant lookups', async () => {
+    let seen: AIRequest | null = null;
+    const provider: AIProvider = { id: 'spy', label: 'spy', complete: async (r) => ((seen = r), { text: 'ok', calls: [] }) };
+    await new AIService(provider).send('Was habe ich morgen?', [{ role: 'assistant', content: 'Hallo' }]);
+    const req = seen as unknown as AIRequest;
+    expect(req.messages.map((m) => m.role)).toEqual(['system', 'assistant', 'user']);
+    expect(req.messages[0].content).toMatch(/^Heute ist Montag, 2026-09-21, 09:00 Uhr .*Morgen ist Dienstag, 2026-09-22\./);
+    const names = req.tools.map((t) => t.name);
+    expect(names).toContain('create_task');
+    expect(names).toContain('get_notes');
+    expect(names).not.toContain('get_schedule');
+    expect(names).not.toContain('get_tasks');
+  });
+});
+
 describe('answering after a lookup', () => {
   it('asks the model again with the results when it only looked something up', async () => {
     let round = 0;
@@ -242,7 +260,9 @@ describe('answering after a lookup', () => {
         round++;
         if (round === 1) return { text: '', calls: [{ action: 'get_tasks', params: {} }] };
         expect(r.tools).toHaveLength(0); // second round may only answer, not act
-        expect(r.messages.at(-1)!.content).toMatch(/Ergebnisse/);
+        expect(r.messages.filter((m) => m.role === 'system')).toHaveLength(1);
+        expect(r.messages[0].content).toMatch(/Ergebnisse/);
+        expect(r.messages.at(-1)).toEqual({ role: 'user', content: 'Was ist offen?' });
         return { text: 'Du hast 4 offene Aufgaben.', calls: [] };
       },
     };

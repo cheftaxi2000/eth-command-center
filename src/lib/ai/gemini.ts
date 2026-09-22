@@ -63,11 +63,15 @@ export function parseCompletion(data: ChatCompletion): AIReply {
   return { text: typeof msg.content === 'string' ? msg.content.trim() : '', calls };
 }
 
-function buildBody(req: AIRequest, model: string) {
-  const messages = [...req.messages];
-  // Live app state goes right after the app's own system prompt, before the conversation.
-  const at = messages.findIndex((m) => m.role !== 'system');
-  messages.splice(at < 0 ? messages.length : at, 0, { role: 'system', content: `Aktueller Stand der App:\n\n${req.contextText}` });
+/**
+ * Exactly ONE system message, first – instructions + live app state together. Gemini's
+ * OpenAI-compatible endpoint does not reliably honour several system messages (observed: the
+ * model answered without knowing today's date although it was in a second one), and a system
+ * message after the user's question is outside what that API is built for.
+ */
+export function buildBody(req: AIRequest, model: string) {
+  const system = [...req.messages.filter((m) => m.role === 'system').map((m) => m.content), `Aktueller Stand der App:\n\n${req.contextText}`].join('\n\n');
+  const messages = [{ role: 'system' as const, content: system }, ...req.messages.filter((m) => m.role !== 'system')];
   const tools = toOpenAITools(req.tools);
   return { model, messages, temperature: 0.2, ...(tools.length ? { tools, tool_choice: 'auto' } : {}) };
 }
