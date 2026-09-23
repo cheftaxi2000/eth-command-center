@@ -1,9 +1,9 @@
 import { COURSE_EXERCISES, ROLE_LABEL } from '../../data/exercises';
-import { COURSES, buildItems, hiddenItems, targetOf } from '../data';
+import { CATEGORY_LABEL, COURSES, buildItems, hiddenItems, targetOf } from '../data';
 import { exerciseEntry } from '../exercises';
 import { normalizeUrl } from '../links';
 import { getNow } from '../now';
-import { GENERAL_ID } from '../state';
+import { CATEGORIES, GENERAL_ID, type TodoCategory } from '../state';
 import { actions as store, getPersonal } from '../store';
 import { dueMoment, fmtDateShort, fmtTime, isAllDay, toLocalDate } from '../time';
 import { endsAt, fmtMinutes, getTimer, startTimer, stopTimer, weekStats } from '../timer';
@@ -240,19 +240,27 @@ export const ACTIONS: Record<string, ActionDef> = {
 
   create_task: {
     name: 'create_task',
-    description: 'Neues eigenes To-do anlegen. Für einen zeitgebundenen Termin die Frist mit Uhrzeit angeben.',
+    description: 'Neues eigenes To-do anlegen. Für einen zeitgebundenen Termin die Frist mit Uhrzeit angeben. Art: bonus (Bonusaufgabe, Quiz – zählt für die Note), uebung (Serie, Übungsblatt) oder rest (alles andere); ohne Angabe wird sie aus dem Titel erraten. important=true, wenn der Nutzer es wichtig nennt: dann kommt eine Erinnerung am Vortag und 1 Stunde vorher (braucht eine Frist).',
     params: {
       title: { type: 'string', description: 'Was zu tun ist', required: true },
       subject: { type: 'subject', description: 'Fach; ohne Angabe "Allgemein"' },
       deadline: { type: 'due', description: 'JJJJ-MM-TT oder JJJJ-MM-TTTHH:MM' },
+      category: { type: 'enum', description: 'bonus | uebung | rest', values: CATEGORIES },
+      important: { type: 'boolean', description: 'Wichtig – mit Erinnerungen' },
     },
     run: (p) => {
       const courseId = (p.subject as string) ?? GENERAL_ID;
-      const id = store.addTodo({ courseId, text: p.title as string, due: p.deadline as string | undefined });
+      const important = p.important === true;
+      const id = store.addTodo({
+        courseId, text: p.title as string, due: p.deadline as string | undefined,
+        category: p.category as TodoCategory | undefined, important,
+      });
+      const kind = CATEGORY_LABEL[getPersonal().synced.todos[id].category ?? 'rest'];
+      const reminder = !important ? '' : p.deadline ? ' – wichtig, mit Erinnerung am Vortag und 1 Stunde vorher' : ' – als wichtig markiert (für eine Erinnerung fehlt noch die Frist)';
       return {
         ok: true,
         action: 'create_task',
-        message: `To-do „${p.title as string}" für ${subjectName(courseId)} angelegt${p.deadline ? `, fällig ${human(p.deadline as string)}` : ''}.`,
+        message: `${kind} „${p.title as string}" für ${subjectName(courseId)} angelegt${p.deadline ? `, fällig ${human(p.deadline as string)}` : ''}${reminder}.`,
         data: { id },
       };
     },
@@ -267,13 +275,15 @@ export const ACTIONS: Record<string, ActionDef> = {
       subject: { type: 'subject', description: 'Neues Fach' },
       deadline: { type: 'due', description: 'Neue Frist' },
       done: { type: 'boolean', description: 'Erledigt ja/nein' },
+      category: { type: 'enum', description: 'bonus | uebung | rest', values: CATEGORIES },
+      important: { type: 'boolean', description: 'Wichtig (mit Erinnerungen) ja/nein' },
     },
     run: (p) => {
       const id = p.id as string;
       const found = item(id);
       if (!found) return fail('update_task', `Es gibt keine Aufgabe mit der Id "${id}".`);
       if (found.kind === 'notion') {
-        if (p.title || p.subject || p.deadline) return fail('update_task', `„${found.title}" kommt aus Notion und lässt sich hier nur abhaken, nicht bearbeiten.`);
+        if (p.title || p.subject || p.deadline || p.category || typeof p.important === 'boolean') return fail('update_task', `„${found.title}" kommt aus Notion und lässt sich hier nur abhaken, nicht bearbeiten.`);
         if (typeof p.done !== 'boolean') return fail('update_task', 'Für eine Notion-Aufgabe ist nur "done" möglich.');
         store.setTaskDone(id, p.done);
         return { ok: true, action: 'update_task', message: `„${found.title}" als ${p.done ? 'erledigt' : 'offen'} markiert.`, data: { id } };
@@ -284,8 +294,14 @@ export const ACTIONS: Record<string, ActionDef> = {
         ...(p.subject ? { courseId: p.subject as string } : {}),
         ...(p.deadline ? { due: p.deadline as string } : {}),
         ...(typeof p.done === 'boolean' ? { done: p.done } : {}),
+        ...(p.category ? { category: p.category as TodoCategory } : {}),
+        ...(typeof p.important === 'boolean' ? { important: p.important } : {}),
       });
-      const what = [p.deadline && `neue Frist ${human(p.deadline as string)}`, p.title && `neuer Text`, p.subject && `neues Fach ${subjectName(p.subject as string)}`, typeof p.done === 'boolean' && (p.done ? 'erledigt' : 'wieder offen')].filter(Boolean).join(', ');
+      const what = [
+        p.deadline && `neue Frist ${human(p.deadline as string)}`, p.title && `neuer Text`, p.subject && `neues Fach ${subjectName(p.subject as string)}`,
+        typeof p.done === 'boolean' && (p.done ? 'erledigt' : 'wieder offen'), p.category && `Art ${CATEGORY_LABEL[p.category as TodoCategory]}`,
+        typeof p.important === 'boolean' && (p.important ? 'wichtig, mit Erinnerungen' : 'nicht mehr wichtig'),
+      ].filter(Boolean).join(', ');
       return { ok: true, action: 'update_task', message: `„${found.title}" geändert${what ? `: ${what}` : ''}.`, data: { id } };
     },
   },

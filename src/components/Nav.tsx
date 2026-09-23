@@ -1,4 +1,5 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
 import { COURSES, openWork, useItems } from '../lib/data';
 import { MOD_KEY } from '../lib/hooks';
 import { useNow } from '../lib/now';
@@ -59,112 +60,121 @@ export function SyncBadge() {
   );
 }
 
-/** ≥ 1024 px (desktop, iPad landscape): sidebar with all courses. Below: tab bar + "+" button. */
-export function SideNav() {
+/**
+ * The one bar on every page and every screen size: ☰ on the left opens the navigation, on the right
+ * search, the assistant and "Neues To-do". Replaces the old sidebar, tab bar and the two round
+ * floating buttons – one calm strip instead of four places that all offered navigation.
+ */
+export function TopBar() {
   const ui = useUI();
-  const openTasks = useOpenTaskCount();
-  const notes = useNoteCount();
   const courseId = useCurrentCourseId();
+  const openTasks = useOpenTaskCount();
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 4);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   return (
-    <aside className="side" aria-label="Navigation">
-      <div className="side__brand">
+    <header className={cx('topbar', scrolled && 'is-scrolled')}>
+      <button type="button" id="menu-button" className="topbar__btn topbar__menu" aria-label="Menü öffnen"
+        aria-expanded={ui.menuOpen} aria-controls="nav-drawer" onClick={() => ui.setMenuOpen(true)}>
+        <Icon name="menu" size={24} />
+        {openTasks > 0 && <span className="topbar__dot" aria-hidden="true" />}
+      </button>
+      <Link to="/" className="topbar__brand" aria-label="Heute">
         <span className="brand-mark" aria-hidden="true" />
         <span>Studium</span>
+      </Link>
+      <div className="topbar__actions">
+        <button type="button" className="topbar__btn" onClick={ui.openSearch} aria-label="Suchen" title={`Suchen (${MOD_KEY} K)`}>
+          <Icon name="search" size={21} />
+        </button>
+        <button type="button" className="topbar__btn" onClick={() => ui.setAssistantOpen(true)} aria-label="Assistent" title="Assistent (C)">
+          <Icon name="spark" size={21} />
+        </button>
+        <button type="button" className="topbar__add" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId })} aria-label="Neues To-do" title="Neues To-do (N)">
+          <Icon name="plus" size={20} />
+          <span className="topbar__add-label">Neues To-do</span>
+        </button>
       </div>
-
-      <button type="button" className="side__btn" onClick={ui.openSearch}>
-        <Icon name="search" size={20} />
-        <span className="side__btn-label">Suchen</span>
-        <kbd className="kbd-hint">{MOD_KEY} K</kbd>
-      </button>
-      <button type="button" className="side__btn side__btn--add" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId })}>
-        <Icon name="plus" size={20} />
-        <span className="side__btn-label">Neues To-do</span>
-        <kbd className="kbd-hint">N</kbd>
-      </button>
-      <button type="button" className="side__btn" onClick={() => ui.setAssistantOpen(true)}>
-        <Icon name="spark" size={20} />
-        <span className="side__btn-label">Assistent</span>
-        <kbd className="kbd-hint">C</kbd>
-      </button>
-
-      <nav className="side__nav">
-        {MAIN.map((n) => (
-          <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
-            <Icon name={n.icon} />
-            <span className="nav-item__label">{n.label}</span>
-            {n.to === '/tasks' && openTasks > 0 && <span className="badge" aria-label={taskCountLabel(openTasks)}>{openTasks}</span>}
-          </NavLink>
-        ))}
-        {/* Not in MAIN/TabBar (no room for a 6th tab) – reachable on iPad/phone via the "Kurse" page instead. */}
-        <NavLink to="/notes" className={navClass}>
-          <Icon name="note" />
-          <span className="nav-item__label">Notizen</span>
-          {notes > 0 && <span className="badge badge--quiet" aria-label={noteCountLabel(notes)}>{notes}</span>}
-        </NavLink>
-      </nav>
-
-      <div className="side__courses">
-        <NavLink to="/courses" end className="side__heading">Kurse</NavLink>
-        {COURSES.map((c, i) => (
-          <NavLink key={c.id} to={`/courses/${c.id}`} className={navClass}>
-            <CourseDot color={c.color} />
-            <span className="nav-item__label">{c.shortName}</span>
-            <kbd className="kbd-hint kbd-hint--quiet">{i + 1}</kbd>
-          </NavLink>
-        ))}
-      </div>
-
-      <div className="side__foot">
-        <NavLink to="/bonus" className={navClass}><Icon name="trophy" /><span className="nav-item__label">Bonus & Leistung</span><kbd className="kbd-hint kbd-hint--quiet">B</kbd></NavLink>
-        <NavLink to="/links" className={navClass}><Icon name="link" /><span className="nav-item__label">Links & Admin</span></NavLink>
-        <NavLink to="/settings" className={navClass}><Icon name="settings" /><span className="nav-item__label">Einstellungen</span></NavLink>
-        <SyncBadge />
-      </div>
-    </aside>
+    </header>
   );
 }
 
-export function TabBar() {
+/** Everything you can go to, behind ☰. Closes on navigation, Esc or a tap next to it. */
+export function NavDrawer() {
   const ui = useUI();
+  const { pathname } = useLocation();
   const openTasks = useOpenTaskCount();
-  const tabs = [...MAIN, { to: '/courses', label: 'Kurse', icon: 'courses' as const, end: false, key: 'K' }];
-  return (
-    <nav className="tabbar" aria-label="Hauptnavigation">
-      {tabs.map((n) => (
-        <NavLink key={n.to} to={n.to} end={n.end} className={({ isActive }) => cx('tab', isActive && 'is-active')}>
-          <span className="tab__icon">
-            <Icon name={n.icon} />
-            {n.to === '/tasks' && openTasks > 0 && <span className="badge badge--dot" aria-label={taskCountLabel(openTasks)}>{openTasks}</span>}
-          </span>
-          <span className="tab__label">{n.label}</span>
-        </NavLink>
-      ))}
-      <button type="button" className="tab" onClick={ui.openSearch}>
-        <span className="tab__icon"><Icon name="search" /></span>
-        <span className="tab__label">Suche</span>
-      </button>
-    </nav>
-  );
-}
+  const notes = useNoteCount();
+  const panel = useRef<HTMLElement>(null);
+  const { menuOpen, setMenuOpen } = ui;
 
-/** Floating "+" (iPad portrait / phone): new to-do from anywhere, for the course you are looking at */
-export function Fab() {
-  const ui = useUI();
-  const courseId = useCurrentCourseId();
-  return (
-    <button type="button" className="fab" aria-label="Neues To-do" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId })}>
-      <Icon name="plus" size={26} />
-    </button>
-  );
-}
+  // Picking a page closes the menu (also when the page is changed with a keyboard shortcut)
+  useEffect(() => setMenuOpen(false), [pathname, setMenuOpen]);
 
-/** Floating assistant button above the "+" (iPad portrait / phone), where there is no sidebar. */
-export function AiFab() {
-  const ui = useUI();
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setMenuOpen(false);
+    document.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    panel.current?.querySelector<HTMLElement>('.is-active, a')?.focus({ preventScroll: true });
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+      document.getElementById('menu-button')?.focus({ preventScroll: true });
+    };
+  }, [menuOpen, setMenuOpen]);
+
   return (
-    <button type="button" className="fab fab--ai" aria-label="Assistent öffnen" onClick={() => ui.setAssistantOpen(true)}>
-      <Icon name="spark" size={22} />
-    </button>
+    <div className={cx('drawer', menuOpen && 'is-open')} inert={!menuOpen}>
+      <div className="drawer__scrim" onClick={() => setMenuOpen(false)} aria-hidden="true" />
+      {/* Any tap on an entry closes the menu – also the one for the page you are already on */}
+      <nav id="nav-drawer" className="drawer__panel" aria-label="Navigation" ref={panel}
+        onClick={(e) => (e.target as HTMLElement).closest('a') && setMenuOpen(false)}>
+        <div className="drawer__head">
+          <span className="drawer__brand"><span className="brand-mark" aria-hidden="true" />Studium</span>
+          <button type="button" className="topbar__btn" onClick={() => setMenuOpen(false)} aria-label="Menü schließen">
+            <Icon name="close" />
+          </button>
+        </div>
+
+        <div className="drawer__group">
+          {MAIN.map((n) => (
+            <NavLink key={n.to} to={n.to} end={n.end} className={navClass}>
+              <Icon name={n.icon} />
+              <span className="nav-item__label">{n.label}</span>
+              {n.to === '/tasks' && openTasks > 0 && <span className="badge" aria-label={taskCountLabel(openTasks)}>{openTasks}</span>}
+            </NavLink>
+          ))}
+          <NavLink to="/notes" className={navClass}>
+            <Icon name="note" />
+            <span className="nav-item__label">Notizen</span>
+            {notes > 0 && <span className="badge badge--quiet" aria-label={noteCountLabel(notes)}>{notes}</span>}
+          </NavLink>
+        </div>
+
+        <div className="drawer__group">
+          <NavLink to="/courses" end className="drawer__heading">Kurse</NavLink>
+          {COURSES.map((c, i) => (
+            <NavLink key={c.id} to={`/courses/${c.id}`} className={navClass}>
+              <CourseDot color={c.color} />
+              <span className="nav-item__label">{c.shortName}</span>
+              <kbd className="kbd-hint">{i + 1}</kbd>
+            </NavLink>
+          ))}
+        </div>
+
+        <div className="drawer__group drawer__foot">
+          <NavLink to="/bonus" className={navClass}><Icon name="trophy" /><span className="nav-item__label">Bonus & Leistung</span></NavLink>
+          <NavLink to="/links" className={navClass}><Icon name="link" /><span className="nav-item__label">Links & Admin</span></NavLink>
+          <NavLink to="/settings" className={navClass}><Icon name="settings" /><span className="nav-item__label">Einstellungen</span></NavLink>
+          <SyncBadge />
+        </div>
+      </nav>
+    </div>
   );
 }

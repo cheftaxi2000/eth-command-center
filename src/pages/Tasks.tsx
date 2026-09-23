@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { taskCountLabel } from '../components/Nav';
 import { ItemRow } from '../components/rows';
 import { toast } from '../components/toast';
-import { Accordion, CourseDot, Empty, Icon, SectionHead, cx } from '../components/ui';
-import { useUI } from '../components/ui-context';
-import { TARGETS, openWork, useItems, type Item } from '../lib/data';
-import { matchesTypeFilter, roleLabel, rolesInUse } from '../lib/exercises';
+import { Accordion, Empty, Icon, SectionHead, cvar, cx } from '../components/ui';
+import { CATEGORY_FILTER_LABEL, TARGETS, openWork, targetOf, useItems, type Item } from '../lib/data';
+import { matchesCategory } from '../lib/exercises';
 import { useLingerDone, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
+import { CATEGORIES, type TodoCategory } from '../lib/state';
 import { actions } from '../lib/store';
 import { daysBetween } from '../lib/time';
 
@@ -34,69 +34,54 @@ export function groupItems(open: Item[], done: Item[], now: Date) {
   };
 }
 
-/** Course exercises, own to-dos and the rest – the filter row above the list. */
-const typeFilters = () => [
-  ...rolesInUse().map((r) => ({ id: `role:${r}`, label: roleLabel(r) })),
-  { id: 'todo', label: 'Meine To-dos' },
-  { id: 'other', label: 'Abgaben & Prüfungen' },
-];
-
 export function TasksPage() {
   useTitle('Aufgaben');
   const now = useNow();
-  const ui = useUI();
   const all = useItems();
-  const [filter, setFilter] = useState<string | null>(null);
-  const [type, setType] = useState<string | null>(null);
-  const list = all.filter((i) => (!filter || i.courseId === filter) && matchesTypeFilter(i, type));
+  const [course, setCourse] = useState<string | null>(null);
+  const [cat, setCat] = useState<TodoCategory | null>(null);
+  const inCourse = all.filter((i) => !course || i.courseId === course);
+  const list = inCourse.filter((i) => matchesCategory(i, cat));
   const { items: openish, lingering } = useLingerDone(list);
   const done = list.filter((i) => i.done && !lingering.has(i.id));
   const g = groupItems(openish, done, now);
-  // The honest total: every open item that has a date plus own undated to-dos – the nav badge's number.
+  // The honest total: every open item that has a date plus own undated to-dos – the menu badge's number.
   const openCount = openWork(list).length;
   const shownCount = g.overdue.length + g.soon.length + g.later.length + g.undated.length + g.planned.length;
   const ownDone = g.done.filter((i) => i.kind === 'todo').length;
+  const countOf = (c: TodoCategory | null) => openWork(inCourse.filter((i) => matchesCategory(i, c))).length;
+  const picked = course ? targetOf(course) : null;
 
   return (
     <>
       <header className="page-head">
         <div>
-          <p className="eyebrow">
-            {openCount === 0 ? 'To-dos, Abgaben, Prüfungen' : `Du hast ${taskCountLabel(openCount)} zu erledigen`}
-          </p>
+          <p className="eyebrow">{openCount === 0 ? 'Alles erledigt' : `${taskCountLabel(openCount)}${cat || course ? ' in dieser Auswahl' : ''}`}</p>
           <h1>Aufgaben</h1>
-        </div>
-        <div className="stepper">
-          <button type="button" className="btn" onClick={() => ui.openEditor({ mode: 'new', kind: 'exam', courseId: filter ?? undefined })}>
-            <Icon name="flag" size={18} />Prüfung
-          </button>
-          <button type="button" className="btn btn--primary" onClick={() => ui.openEditor({ mode: 'new', kind: 'todo', courseId: filter ?? undefined })}>
-            <Icon name="plus" size={18} />To-do
-          </button>
         </div>
       </header>
 
-      <div className="filters" data-noswipe role="group" aria-label="Nach Fach filtern">
-        <button type="button" className={cx('filter', !filter && 'is-on')} onClick={() => setFilter(null)}>Alle</button>
-        {TARGETS.map((t) => (
-          <button key={t.id} type="button" className={cx('filter', filter === t.id && 'is-on')} onClick={() => setFilter(filter === t.id ? null : t.id)}>
-            <CourseDot color={t.color} />{t.shortName}
-          </button>
-        ))}
-      </div>
-
-      {typeFilters().length > 1 && (
-        <div className="filters filters--type" data-noswipe role="group" aria-label="Nach Art filtern">
-          <button type="button" className={cx('filter', !type && 'is-on')} onClick={() => setType(null)}>Alles</button>
-          {typeFilters().map((t) => (
-            <button key={t.id} type="button" className={cx('filter', type === t.id && 'is-on')} onClick={() => setType(type === t.id ? null : t.id)}>
-              {t.label}
+      <div className="toolbar" data-noswipe>
+        <div className="catseg" role="radiogroup" aria-label="Art">
+          {[null, ...CATEGORIES].map((c) => (
+            <button key={c ?? 'all'} type="button" role="radio" aria-checked={cat === c}
+              className={cx('catseg__btn', c && `catseg__btn--${c}`, cat === c && 'is-on')} onClick={() => setCat(c)}>
+              {c ? CATEGORY_FILTER_LABEL[c] : 'Alle'}
+              <span className="catseg__n">{countOf(c)}</span>
             </button>
           ))}
         </div>
-      )}
+        <label className={cx('select-pill', picked && 'is-set')} style={picked ? cvar(picked.color) : undefined}>
+          {picked && <span className="dot" aria-hidden="true" />}
+          <select value={course ?? ''} onChange={(e) => setCourse(e.target.value || null)} aria-label="Nach Fach filtern">
+            <option value="">Alle Fächer</option>
+            {TARGETS.map((t) => <option key={t.id} value={t.id}>{t.shortName}</option>)}
+          </select>
+          <Icon name="chevron-down" size={14} />
+        </label>
+      </div>
 
-      {shownCount === 0 && <Empty>Alles erledigt{filter ? ' in diesem Fach' : ''}. 🎉</Empty>}
+      {shownCount === 0 && <Empty>Nichts offen{cat ? ` bei ${CATEGORY_FILTER_LABEL[cat]}` : ''}{course ? ' in diesem Fach' : ''}. 🎉</Empty>}
 
       <Group title="Überfällig" items={g.overdue} now={now} lingering={lingering} danger />
       <Group title="Nächste 7 Tage" items={g.soon} now={now} lingering={lingering} />
@@ -104,17 +89,10 @@ export function TasksPage() {
       <Group title="Ohne Datum" items={g.undated} now={now} lingering={lingering} />
 
       {g.planned.length > 0 && (
-        <Accordion title={`Übungen, deren Termin noch nicht öffentlich ist (${g.planned.length})`}>
+        <Accordion title={`Termin noch nicht öffentlich (${g.planned.length})`}>
           <ul className="panel list">{g.planned.map((i) => <ItemRow key={i.id} item={i} now={now} detailed />)}</ul>
-          <p className="hint">Sie zählen nicht in die Zahl oben – die Termine stehen auf Moodle bzw. Code Expert.</p>
+          <p className="hint">Kursübungen, deren Datum der Kurs noch nicht genannt hat – sie zählen nicht in die Zahl oben.</p>
         </Accordion>
-      )}
-
-      {!all.some((i) => i.kind === 'exam') && (
-        <p className="hint hint--block">
-          Prüfungstermine stehen nicht in Notion.{' '}
-          <button type="button" className="text-btn" onClick={() => ui.openEditor({ mode: 'new', kind: 'exam', courseId: filter ?? undefined })}>Prüfung eintragen</button>
-        </p>
       )}
 
       {g.done.length > 0 && (
@@ -122,7 +100,7 @@ export function TasksPage() {
           <ul className="panel list">{g.done.map((i) => <ItemRow key={i.id} item={i} now={now} />)}</ul>
           {ownDone > 0 && (
             <button type="button" className="text-btn" onClick={() => {
-              const n = actions.clearDoneTodos(filter ?? undefined);
+              const n = actions.clearDoneTodos(course ?? undefined);
               toast({ text: `${n} erledigte To-dos entfernt` }, 2500);
             }}>
               Erledigte To-dos entfernen

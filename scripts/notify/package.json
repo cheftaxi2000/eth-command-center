@@ -1,0 +1,12 @@
+{
+  "name": "eth-command-center-reminders",
+  "private": true,
+  "description": "Sends Web Push reminders for important to-dos (run by .github/workflows/reminders.yml)",
+  "type": "module",
+  "scripts": {
+    "start": "node send-reminders.mjs"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}

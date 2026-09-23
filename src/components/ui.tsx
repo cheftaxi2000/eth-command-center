@@ -7,7 +7,7 @@ export type IconName =
   | 'today' | 'week' | 'tasks' | 'courses' | 'search' | 'link' | 'settings' | 'person' | 'pin'
   | 'chevron-right' | 'chevron-left' | 'chevron-down' | 'check' | 'plus' | 'external' | 'close'
   | 'trash' | 'copy' | 'flag' | 'note' | 'cloud' | 'cloud-off' | 'alert' | 'keyboard' | 'calendar' | 'spark' | 'send' | 'mic' | 'stop' | 'arrow-up' | 'timer'
-  | 'edit' | 'trophy';
+  | 'edit' | 'trophy' | 'menu' | 'bell' | 'bell-off';
 
 const PATHS: Record<IconName, ReactNode> = {
   today: (<><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" /></>),
@@ -42,6 +42,9 @@ const PATHS: Record<IconName, ReactNode> = {
   timer: (<><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2.5M10 2h4M12 2v3" /></>),
   edit: (<><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></>),
   trophy: (<><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /><path d="M7 6H4.5A1.5 1.5 0 0 0 3 7.5C3 9.5 4.5 11 7 11M17 6h2.5A1.5 1.5 0 0 1 21 7.5c0 2-1.5 3.5-4 3.5" /></>),
+  menu: <path d="M4 7h16M4 12h16M4 17h16" />,
+  bell: (<><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" /></>),
+  'bell-off': (<><path d="M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0M2 2l20 20" /></>),
   keyboard: (<><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M7 16h10" /></>),
 };
 

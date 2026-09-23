@@ -5,7 +5,7 @@ import { suggestCourse } from '../lib/schedule';
 import { usePersonal } from '../lib/store';
 import { completeIfDue, fmtMinutes, remainingMs, startTimer, stopTimer, useTimer, weekStats, type RunningTimer } from '../lib/timer';
 import { toast } from './toast';
-import { CourseDot, Icon, SectionHead, cvar, cx } from './ui';
+import { CourseDot, Icon, SectionHead, cvar } from './ui';
 
 const mmss = (ms: number) => {
   const s = Math.ceil(ms / 1000);
@@ -129,6 +129,7 @@ export function StudyWeek() {
   const courseId = picked ?? suggested;
   const max = Math.max(1, stats.total);
 
+  const course = courseById(courseId);
   return (
     <section className="dash__study" aria-labelledby="h-study">
       <SectionHead id="h-study" title="Lernzeit" action={<span className="count">diese Woche</span>} />
@@ -152,19 +153,18 @@ export function StudyWeek() {
           </>
         )}
         {!timer && (
-          <div className="study__start">
-            <div className="composer__courses" data-noswipe role="radiogroup" aria-label="Fach für den Lernblock">
-              {COURSES.map((c) => (
-                <button key={c.id} type="button" role="radio" aria-checked={courseId === c.id}
-                  className={cx('pick', 'pick--sm', courseId === c.id && 'is-on')} onClick={() => setPicked(c.id)}>
-                  <CourseDot color={c.color} />{c.shortName}
-                </button>
-              ))}
-            </div>
-            <div className="btn-row">
-              <button type="button" className="btn btn--primary btn--sm" onClick={() => startStudy(courseId, 25)}><Icon name="timer" size={16} />25 min lernen</button>
-              <button type="button" className="btn btn--sm" onClick={() => startStudy(courseId, 50)}>50 min</button>
-            </div>
+          // One line: which course (a plain select – no chip wall) and two start buttons
+          <div className="study__start" data-noswipe>
+            <label className="select-pill is-set" style={cvar(course?.color ?? '#888')}>
+              <span className="dot" aria-hidden="true" />
+              <select value={courseId} onChange={(e) => setPicked(e.target.value)} aria-label="Fach für den Lernblock">
+                {COURSES.map((c) => <option key={c.id} value={c.id}>{c.shortName}</option>)}
+              </select>
+              <Icon name="chevron-down" size={14} />
+            </label>
+            <span className="spacer" />
+            <button type="button" className="btn btn--sm" onClick={() => startStudy(courseId, 50)}>50 min</button>
+            <button type="button" className="btn btn--primary btn--sm" onClick={() => startStudy(courseId, 25)}><Icon name="timer" size={16} />25 min</button>
           </div>
         )}
       </div>

@@ -12,9 +12,6 @@ export function useMediaQuery(query: string): boolean {
   );
 }
 
-/** Sidebar layout (desktop, iPad landscape) vs. bottom tab bar (iPad portrait, phone) */
-export const WIDE_QUERY = '(min-width: 1024px)';
-
 export function useTitle(title: string) {
   useEffect(() => {
     document.title = title ? `${title} · Studium` : 'Studium';

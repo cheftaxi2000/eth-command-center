@@ -410,3 +410,29 @@ describe('official course exercises and bonus rules', () => {
     expect(parseIntent('Hake Bonusaufgabe 1 als korrekt ab', NOW).calls[0]).toMatchObject({ action: 'complete_exercise', params: { correct: true } });
   });
 });
+
+describe('kinds and important to-dos through the assistant', () => {
+  it('creates an important bonus to-do and says a reminder is coming', () => {
+    const r = executeAction({ action: 'create_task', params: { title: 'Bonusaufgabe 2 abgeben', subject: 'Lineare Algebra', deadline: '2026-09-29T12:00', important: true } });
+    expect(r.ok).toBe(true);
+    expect(r.message).toMatch(/Bonus .*Erinnerung am Vortag und 1 Stunde vorher/);
+    const t = getPersonal().synced.todos[(r.data as { id: string }).id];
+    expect(t).toMatchObject({ category: 'bonus', important: true, due: '2026-09-29T12:00' });
+    expect(buildAIDynamicContext().tasks.find((x) => x.id === t.id)).toMatchObject({ category: 'bonus', important: true });
+  });
+
+  it('changes the kind and importance of an own to-do, never of a Notion task', () => {
+    const id = actions.addTodo({ courseId: 'chemistry', text: 'Skript lesen' });
+    expect(executeAction({ action: 'update_task', params: { id, category: 'uebung', important: true } }).ok).toBe(true);
+    expect(getPersonal().synced.todos[id]).toMatchObject({ category: 'uebung', important: true });
+    expect(executeAction({ action: 'update_task', params: { id: 'task-chem-ps-1', important: true } }).ok).toBe(false);
+    expect(validateAction({ action: 'create_task', params: { title: 'X', category: 'dringend' } })).toMatchObject({ ok: false });
+  });
+
+  it('hears "wichtig" in a sentence and keeps it out of the title', () => {
+    expect(parseIntent('Füge eine wichtige Aufgabe hinzu: Bonusaufgabe 3 bis Freitag', NOW).calls[0]).toEqual({
+      action: 'create_task',
+      params: { title: 'Bonusaufgabe 3', deadline: '2026-09-25', important: true },
+    });
+  });
+});

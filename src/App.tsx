@@ -5,7 +5,8 @@ import { StudyTimerHost } from './components/StudyTimer';
 import { EditorSheet } from './components/EditorSheet';
 import { MemoSheet } from './components/MemoSheet';
 import { LinkSheet } from './components/LinkSheet';
-import { AiFab, Fab, SideNav, TabBar } from './components/Nav';
+import { NavDrawer, TopBar } from './components/Nav';
+import { ReminderHost } from './components/Reminders';
 import { SearchOverlay } from './components/SearchOverlay';
 import { ShortcutsSheet, useGlobalShortcuts } from './components/Shortcuts';
 import { Toasts } from './components/toast';
@@ -48,14 +49,13 @@ function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app">
-      <SideNav />
+      {isSimulatedTime && <p className="sim-banner">Simulierte Zeit: {fmtDateShort(getNow())}, {fmtTime(getNow())}</p>}
+      <TopBar />
+      <NavDrawer />
       <main className="main">
-        {isSimulatedTime && <p className="sim-banner">Simulierte Zeit: {fmtDateShort(getNow())}, {fmtTime(getNow())}</p>}
         <div className="page">{children}</div>
       </main>
-      <TabBar />
-      <Fab />
-      <AiFab />
+      <ReminderHost />
       <SearchOverlay />
       <EditorSheet />
       <MemoSheet />

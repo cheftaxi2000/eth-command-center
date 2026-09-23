@@ -243,7 +243,8 @@ describe('search', () => {
     expect(search.search('getline').some((h) => h.id === 'note:informatik-cpp-basics')).toBe(true);
   });
   it('ignores case and umlauts, and never invents content', () => {
-    expect(search.search('PRUFUNG').some((h) => h.id === 'action:add-exam')).toBe(true);
+    expect(search.search('ERINNERUNG WICHTIG').some((h) => h.id === 'action:add-todo')).toBe(true);
+    expect(search.search('ubung').length).toBeGreaterThan(0);
     expect(createSearch({ ...seed, todos: [], exams: [], memos: [], links: [] }).search('Taylor')).toEqual([]);
   });
   it('guesses the course from free text for quick capture', () => {

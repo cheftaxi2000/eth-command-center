@@ -60,7 +60,7 @@ export function SearchOverlay() {
     else if (t.kind === 'todo' || t.kind === 'exam') ui.openEditor({ mode: 'edit', kind: t.kind, id: t.id });
     else if (t.kind === 'memo') ui.openMemoEditor({ mode: 'edit', id: t.id });
     else if (t.action === 'add-link') ui.openLinkEditor({ mode: 'new' });
-    else ui.openEditor({ mode: 'new', kind: t.action === 'add-exam' ? 'exam' : 'todo' });
+    else ui.openEditor({ mode: 'new', kind: 'todo' });
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {

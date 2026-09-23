@@ -10,7 +10,11 @@ import { useTitle } from '../lib/hooks';
 import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
 import { getSyncConfig, joinSync, newSyncCode, syncNow, switchToSharedCode, useSyncStatus } from '../lib/sync';
-import { toLocalDate } from '../lib/time';
+import { fmtDateShort, fmtTime, toLocalDate } from '../lib/time';
+import {
+  disableBackground, enableReminders, fetchServiceStatus, isIOS, isStandalone, showSystemNotification, thisDeviceSubscribed,
+  upcomingReminders, usePermission, type ServiceStatus,
+} from '../lib/notify';
 import { getNow } from '../lib/now';
 import { exportCalendar } from './Week';
 import { createAIService } from '../lib/ai';
@@ -66,6 +70,8 @@ export function SettingsPage() {
       </header>
 
       <SyncSection />
+
+      <RemindersSection />
 
       <AISection />
 
@@ -275,6 +281,107 @@ function SyncSection() {
             <button type="submit" className="btn" disabled={busy || !joinCode.trim()}>{busy ? 'Koppele …' : 'Koppeln'}</button>
           </div>
         </form>
+      </div>
+    </section>
+  );
+}
+
+const ago = (t: number, now: number) => {
+  const m = Math.round((now - t) / 60_000);
+  return m < 1 ? 'gerade eben' : m < 60 ? `vor ${m} Min` : m < 48 * 60 ? `vor ${Math.round(m / 60)} Std` : `vor ${Math.round(m / 1440)} Tagen`;
+};
+
+/**
+ * Reminders for important to-dos: is this device allowed to show them, does it also get them while
+ * the app is closed (Web Push), is the sending service running – and what comes next.
+ */
+function RemindersSection() {
+  const { synced } = usePersonal();
+  const [perm, recheck] = usePermission();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [service, setService] = useState<ServiceStatus | null | undefined>(undefined);
+  const now = +getNow();
+
+  useEffect(() => {
+    let live = true;
+    void fetchServiceStatus(getSyncConfig().bucket).then((s) => live && setService(s));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const subscribed = thisDeviceSubscribed(synced);
+  const devices = Object.values(synced.push);
+  const upcoming = upcomingReminders(synced, now);
+  const running = !!service?.lastRun && now - service.lastRun < 3 * 3_600_000;
+
+  const enable = async () => {
+    setBusy(true);
+    const r = await enableReminders();
+    setMsg(r.message);
+    recheck();
+    setBusy(false);
+  };
+  const test = async () => {
+    const ok = await showSystemNotification('So sieht eine Erinnerung aus', 'Morgen 10:00 fällig · Analysis I', 'reminder:test');
+    setMsg(ok ? 'Test-Mitteilung geschickt.' : 'Konnte keine Mitteilung zeigen – ist sie erlaubt?');
+  };
+
+  const permLine =
+    perm === 'granted' ? { tone: 'ok', icon: 'bell', text: 'Mitteilungen auf diesem Gerät: erlaubt' }
+    : perm === 'denied' ? { tone: 'warn', icon: 'bell-off', text: 'Mitteilungen blockiert – in den Website-Einstellungen des Browsers erlauben.' }
+    : perm === 'unsupported' ? { tone: 'warn', icon: 'bell-off', text: isIOS() && !isStandalone() ? 'Auf iPad/iPhone nur in der Home-Bildschirm-App: Teilen → „Zum Home-Bildschirm“, dann von dort öffnen.' : 'Dieser Browser kann keine Mitteilungen.' }
+    : { tone: 'off', icon: 'bell-off', text: 'Mitteilungen auf diesem Gerät: noch nicht erlaubt' };
+
+  return (
+    <section id="reminders" className="scroll-target">
+      <h2 className="h-section spaced">Erinnerungen</h2>
+      <div className="panel panel--pad">
+        <p className="hint hint--top">
+          Für To-dos, die du als <strong>Wichtig</strong> markierst: eine Erinnerung am Vortag und eine 1 Stunde vor der Frist
+          (bei einem To-do ohne Uhrzeit: am Vorabend um 18 Uhr und am Tag selbst um 8 Uhr).
+        </p>
+        <p className={`status-line status-line--${permLine.tone}`}><Icon name={permLine.icon as 'bell'} size={18} /><span>{permLine.text}</span></p>
+        <p className={`status-line status-line--${subscribed ? 'ok' : 'off'}`}>
+          <Icon name={subscribed ? 'check' : 'bell-off'} size={18} />
+          <span>{subscribed ? 'Auch wenn die App geschlossen ist: ja, dieses Gerät ist angemeldet.' : 'Bei geschlossener App: dieses Gerät ist noch nicht angemeldet – dann nur, solange die App offen ist.'}</span>
+        </p>
+        <p className={`status-line status-line--${running ? 'ok' : service === undefined ? 'off' : 'warn'}`}>
+          <Icon name={running ? 'cloud' : 'cloud-off'} size={18} />
+          <span>
+            {service === undefined ? 'Erinnerungsdienst: wird geprüft …'
+              : running ? `Erinnerungsdienst läuft · zuletzt ${ago(service!.lastRun!, now)}`
+              : service?.lastRun ? `Erinnerungsdienst zuletzt ${ago(service.lastRun, now)} – gerade nicht aktiv.`
+              : 'Erinnerungsdienst noch nicht eingerichtet (einmalig ein Schlüssel auf GitHub, siehe README „Erinnerungen“). Bis dahin kommen sie, solange die App offen ist.'}
+          </span>
+        </p>
+        {msg && <p className="hint">{msg}</p>}
+        <div className="btn-row">
+          {(perm !== 'granted' || !subscribed) && perm !== 'denied' && (
+            <button type="button" className="btn btn--primary" onClick={() => void enable()} disabled={busy}>
+              <Icon name="bell" size={18} />{perm === 'granted' ? 'Dieses Gerät anmelden' : 'Mitteilungen erlauben'}
+            </button>
+          )}
+          {perm === 'granted' && <button type="button" className="btn" onClick={() => void test()}>Test-Mitteilung</button>}
+          {subscribed && <button type="button" className="btn btn--quiet-danger" onClick={() => void disableBackground()}>Dieses Gerät abmelden</button>}
+        </div>
+        {devices.length > 0 && <p className="devices">Angemeldete Geräte: {devices.map((d) => d.device).join(' · ')}</p>}
+
+        {upcoming.length > 0 && (
+          <>
+            <p className="inline-control__title" style={{ marginTop: 18 }}>Als Nächstes</p>
+            <ul className="reminders__list">
+              {upcoming.map((r) => (
+                <li key={r.key}>
+                  <span className="reminders__when">{fmtDateShort(new Date(r.at))}, {fmtTime(new Date(r.at))}</span>
+                  <span className="reminders__what">{synced.todos[r.todoId]?.text} <span className="muted-tag">· {r.kind === 'day' ? 'Vortag' : 'kurz vorher'}</span></span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        {upcoming.length === 0 && <p className="hint">Keine Erinnerung geplant. Markiere ein To-do mit Frist als „Wichtig“.</p>}
       </div>
     </section>
   );

@@ -1,19 +1,14 @@
-import { Link } from 'react-router-dom';
 import { CourseRow } from '../components/course';
-import { SyncBadge, noteCountLabel, useNoteCount } from '../components/Nav';
-import { Icon } from '../components/ui';
-import { useUI } from '../components/ui-context';
 import { seed } from '../data/seed';
 import { COURSES, useItems } from '../lib/data';
 import { useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 
+/** All courses at a glance. Notizen, Bonus, Links and Einstellungen live in the ☰ menu. */
 export function CoursesPage() {
   useTitle('Kurse');
   const now = useNow();
   const items = useItems();
-  const notes = useNoteCount();
-  const ui = useUI();
   return (
     <>
       <header className="page-head">
@@ -26,46 +21,6 @@ export function CoursesPage() {
       <ul className="panel list">
         {COURSES.map((c) => <CourseRow key={c.id} course={c} items={items} now={now} />)}
       </ul>
-
-      <h2 className="h-section spaced">Mehr</h2>
-      <ul className="panel list">
-        <li>
-          <button type="button" className="row row--link memo-row" onClick={() => ui.setAssistantOpen(true)}>
-            <Icon name="spark" size={20} />
-            <span className="row__main"><span className="row__title">Assistent</span><span className="row__meta"><span>Aufgaben und Notizen per Satz anlegen, Fragen zum Plan</span></span></span>
-            <Icon name="chevron-right" size={18} />
-          </button>
-        </li>
-        <li>
-          <Link to="/notes" className="row row--link">
-            <Icon name="note" size={20} />
-            <span className="row__main"><span className="row__title">Notizen</span><span className="row__meta"><span>{notes > 0 ? `Du hast ${noteCountLabel(notes)}` : 'Persönlich, nicht aus Notion'}</span></span></span>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-        </li>
-        <li>
-          <Link to="/bonus" className="row row--link">
-            <Icon name="trophy" size={20} />
-            <span className="row__main"><span className="row__title">Bonus & Leistung</span><span className="row__meta"><span>Wie du in jedem Fach zum Bonus kommst – mit deinem Stand</span></span></span>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-        </li>
-        <li>
-          <Link to="/links" className="row row--link">
-            <Icon name="link" size={20} />
-            <span className="row__main"><span className="row__title">Links & Admin</span><span className="row__meta"><span>Curriculum, Administratives, alle Kurslinks</span></span></span>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-        </li>
-        <li>
-          <Link to="/settings" className="row row--link">
-            <Icon name="settings" size={20} />
-            <span className="row__main"><span className="row__title">Einstellungen</span><span className="row__meta"><span>Sync, Darstellung, Stundenplan, Backup</span></span></span>
-            <Icon name="chevron-right" size={18} />
-          </Link>
-        </li>
-      </ul>
-      <div className="sync-row"><SyncBadge /></div>
     </>
   );
 }

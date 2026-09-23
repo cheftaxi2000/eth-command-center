@@ -1,10 +1,11 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { targetOf, useItems, type Item } from '../lib/data';
-import { bonusFromFormula, configOf, goalProgress, isKeyRole, roleLabel, rolesInUse, tallyValue, type GoalProgress } from '../lib/exercises';
+import { CATEGORY_FILTER_LABEL, targetOf, useItems, type Item } from '../lib/data';
+import { bonusFromFormula, configOf, goalProgress, isKeyRole, rolesInUse, rolesOfCategory, tallyValue, type GoalProgress } from '../lib/exercises';
 import { useNow } from '../lib/now';
+import { CATEGORIES, type TodoCategory } from '../lib/state';
 import { actions, usePersonal } from '../lib/store';
-import type { CourseExercises, SourceRef } from '../types';
+import type { CourseExercises, ExerciseRole, SourceRef } from '../types';
 import { ItemRow } from './rows';
 import { Chip, Icon, SectionHead, cx } from './ui';
 
@@ -82,23 +83,26 @@ export function BonusCard({ courseId }: { courseId: string }) {
  */
 export function ExerciseFilter() {
   const { synced } = usePersonal();
-  const roles = rolesInUse();
+  const all = rolesInUse();
+  // The same three kinds as everywhere else; underneath, the preference still stores roles.
+  const cats = CATEGORIES.filter((c) => rolesOfCategory(c).length > 0);
   const picked = synced.prefs.weekExerciseRoles;
-  const isOn = (r: string) => !picked || picked.includes(r);
-  const toggle = (r: string) => {
-    const cur: string[] = picked ?? roles;
-    const next = cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r];
-    actions.setWeekExerciseRoles(next.length === roles.length ? null : next);
+  const isOn = (c: TodoCategory) => !picked || rolesOfCategory(c).some((r) => picked.includes(r));
+  const toggle = (c: TodoCategory) => {
+    const cur: string[] = picked ?? all;
+    const roles = rolesOfCategory(c);
+    const next = isOn(c) ? cur.filter((r) => !roles.includes(r as ExerciseRole)) : [...cur, ...roles.filter((r) => !cur.includes(r))];
+    actions.setWeekExerciseRoles(all.every((r) => next.includes(r)) ? null : next);
   };
-  if (roles.length === 0) return null;
+  if (cats.length === 0) return null;
   return (
     <div className="exfilter" data-noswipe>
-      <span className="exfilter__label">Übungen anzeigen</span>
-      <div className="filters" role="group" aria-label="Übungsarten im Wochenplan">
-        <button type="button" className={cx('filter', !picked && 'is-on')} aria-pressed={!picked} onClick={() => actions.setWeekExerciseRoles(null)}>Alle</button>
-        {roles.map((r) => (
-          <button key={r} type="button" className={cx('filter', isOn(r) && 'is-on', isKeyRole(r) && 'filter--key')} aria-pressed={isOn(r)} onClick={() => toggle(r)}>
-            {roleLabel(r)}
+      <span className="exfilter__label">Kursübungen</span>
+      <div className="filters" role="group" aria-label="Kursübungen im Wochenplan">
+        <button type="button" className={cx('filter', 'filter--sm', !picked && 'is-on')} aria-pressed={!picked} onClick={() => actions.setWeekExerciseRoles(null)}>Alle</button>
+        {cats.map((c) => (
+          <button key={c} type="button" className={cx('filter', 'filter--sm', isOn(c) && 'is-on', c === 'bonus' && 'filter--key')} aria-pressed={isOn(c)} onClick={() => toggle(c)}>
+            {CATEGORY_FILTER_LABEL[c]}
           </button>
         ))}
       </div>

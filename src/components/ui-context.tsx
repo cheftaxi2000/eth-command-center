@@ -1,8 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import type { TodoCategory } from '../lib/state';
 
-/** What the add/edit sheet should show */
+/**
+ * What the add/edit sheet should show. New entries are always to-dos (Bonus / Übung / Sonstiges);
+ * exams can still be edited if one exists, but are no longer offered as something to create.
+ */
 export type EditorRequest =
-  | { mode: 'new'; kind: 'todo' | 'exam'; courseId?: string; text?: string }
+  | { mode: 'new'; kind: 'todo'; courseId?: string; text?: string; category?: TodoCategory }
   | { mode: 'edit'; kind: 'todo' | 'exam'; id: string };
 
 /** What the note sheet should show */
@@ -31,6 +35,9 @@ interface UI {
   setHelpOpen: (v: boolean) => void;
   assistantOpen: boolean;
   setAssistantOpen: (v: boolean) => void;
+  /** The navigation drawer behind the ☰ button */
+  menuOpen: boolean;
+  setMenuOpen: (v: boolean) => void;
 }
 
 const Ctx = createContext<UI | null>(null);
@@ -42,6 +49,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [linkEditor, setLinkEditor] = useState<LinkRequest | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const openSearch = useCallback(() => setSearchOpen(true), []);
   const closeSearch = useCallback(() => setSearchOpen(false), []);
@@ -56,9 +64,9 @@ export function UIProvider({ children }: { children: ReactNode }) {
     () => ({
       searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor,
       memoEditor, openMemoEditor, closeMemoEditor, linkEditor, openLinkEditor, closeLinkEditor,
-      helpOpen, setHelpOpen, assistantOpen, setAssistantOpen,
+      helpOpen, setHelpOpen, assistantOpen, setAssistantOpen, menuOpen, setMenuOpen,
     }),
-    [searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor, memoEditor, openMemoEditor, closeMemoEditor, linkEditor, openLinkEditor, closeLinkEditor, helpOpen, assistantOpen],
+    [searchOpen, openSearch, closeSearch, editor, openEditor, closeEditor, memoEditor, openMemoEditor, closeMemoEditor, linkEditor, openLinkEditor, closeLinkEditor, helpOpen, assistantOpen, menuOpen],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

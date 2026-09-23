@@ -1,9 +1,9 @@
 import { useMemo } from 'react';
 import { seed } from '../data/seed';
 import type { Course, ExerciseRole } from '../types';
-import { exerciseEntries, exerciseStatus, isKeyRole } from './exercises';
+import { categoryOfRole, exerciseEntries, exerciseStatus, isKeyRole } from './exercises';
 import { useNow } from './now';
-import { GENERAL_ID, type SyncedState } from './state';
+import { GENERAL_ID, inferCategory, type SyncedState, type TodoCategory } from './state';
 import { usePersonal } from './store';
 import { daysBetween, dueMoment, isAllDay, parseLocal } from './time';
 
@@ -51,10 +51,18 @@ export interface ExerciseMeta {
   key: boolean;
 }
 
+/** How the three kinds are called – singular for a single to-do, plural for the filter. */
+export const CATEGORY_LABEL: Record<TodoCategory, string> = { bonus: 'Bonus', uebung: 'Übung', rest: 'Sonstiges' };
+export const CATEGORY_FILTER_LABEL: Record<TodoCategory, string> = { bonus: 'Bonus', uebung: 'Übungen', rest: 'Sonstiges' };
+
 /** One row in any to-do/deadline list: a Notion task, an own to-do, an exam or an official exercise */
 export interface Item {
   id: string;
   kind: 'notion' | 'todo' | 'exam' | 'exercise';
+  /** Bonus / Übung / Sonstiges – the one grouping every list and filter uses */
+  category: TodoCategory;
+  /** Own to-dos marked "wichtig" – they get reminders */
+  important: boolean;
   courseId: string;
   title: string;
   /** The moment it is due (end of day for all-day to-dos) */
@@ -79,11 +87,16 @@ export const byDue = (a: Item, b: Item) => {
 function rawItems(s: SyncedState, now: Date): Item[] {
   const notion: Item[] = seed.tasks.map((t) => {
     const done = s.taskDone[t.id]?.done ?? t.status === 'done';
-    return { id: t.id, kind: 'notion', courseId: t.courseId, title: t.title, due: parseLocal(t.due), allDay: false, done, inProgress: !done && t.status === 'in-progress', createdAt: 0 };
+    return {
+      id: t.id, kind: 'notion', category: inferCategory(t.title), important: false, courseId: t.courseId, title: t.title,
+      due: parseLocal(t.due), allDay: false, done, inProgress: !done && t.status === 'in-progress', createdAt: 0,
+    };
   });
   const todos: Item[] = Object.values(s.todos).map((t) => ({
     id: t.id,
     kind: 'todo',
+    category: t.category ?? inferCategory(t.text),
+    important: !!t.important,
     courseId: t.courseId,
     title: t.text,
     due: t.due ? dueMoment(t.due) : undefined,
@@ -94,7 +107,10 @@ function rawItems(s: SyncedState, now: Date): Item[] {
   }));
   const exams: Item[] = Object.values(s.exams).map((e) => {
     const when = parseLocal(e.when);
-    return { id: e.id, kind: 'exam', courseId: e.courseId, title: e.title, due: when, allDay: false, done: +when < +now, inProgress: false, location: e.location, createdAt: 0 };
+    return {
+      id: e.id, kind: 'exam', category: 'rest', important: false, courseId: e.courseId, title: e.title,
+      due: when, allDay: false, done: +when < +now, inProgress: false, location: e.location, createdAt: 0,
+    };
   });
   // Official course exercises: read-only definitions joined with the student's own progress.
   const exercises: Item[] = exerciseEntries().map((e, i) => {
@@ -102,6 +118,8 @@ function rawItems(s: SyncedState, now: Date): Item[] {
     return {
       id: e.exercise.id,
       kind: 'exercise' as const,
+      category: categoryOfRole(e.type.role),
+      important: false,
       courseId: e.courseId,
       title: e.exercise.title,
       due: e.due,

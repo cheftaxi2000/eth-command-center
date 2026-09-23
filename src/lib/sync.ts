@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { canonical, mergeSynced, normalizeSynced, type SyncedState } from './state';
+import { DEFAULT_BUCKET } from './push-config';
 import { applyMerged, getPersonal, onSyncedChange } from './store';
 
 /**
@@ -17,7 +18,7 @@ import { applyMerged, getPersonal, onSyncedChange } from './store';
  */
 
 /** Overridable at build time (`VITE_SYNC_BUCKET=…`) without touching the source. */
-export const SHARED_BUCKET: string = import.meta.env.VITE_SYNC_BUCKET || '92oHKuqyUDHM6uDLLnfZRv';
+export const SHARED_BUCKET: string = import.meta.env.VITE_SYNC_BUCKET || DEFAULT_BUCKET;
 
 export interface SyncConfig {
   bucket: string;

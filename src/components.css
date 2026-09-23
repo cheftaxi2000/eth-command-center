@@ -3,10 +3,11 @@
    ========================================================================== */
 
 /* ---------- panels & rows ---------- */
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; box-shadow: var(--card-shadow); }
 .panel--pad { padding: 18px 20px; }
 .panel + .panel { margin-top: 12px; }
 .list > li + li, .list--top > li:first-child { border-top: 1px solid var(--line); }
+.list .more--row { border-top: 0; }
 .sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; margin-bottom: 6px; }
 
 .row { display: flex; align-items: center; gap: 14px; min-height: 60px; padding: 10px 16px; }
@@ -27,13 +28,13 @@
 @media (hover: hover) { .row--link:hover, .item__body:hover, .session__main:hover { background: var(--surface-2); } }
 
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--c); flex: none; }
-.meta-course { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); }
+.meta-course { display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); white-space: nowrap; }
 .muted-tag { font-size: 0.8125rem; color: var(--ink-3); }
 
 /* item (to-do / Notion task / exam) */
 .item { padding-top: 0; padding-bottom: 0; }
 .item__body { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; min-height: 52px; padding: 8px 12px; margin: 0 -12px; border-radius: 10px; }
-.item__text { overflow-wrap: anywhere; }
+.item__text { overflow-wrap: break-word; }
 .item.is-done .item__text { color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .item .row__due { padding-left: 4px; }
 
@@ -98,9 +99,25 @@
   .seg__btn { white-space: normal; padding: 4px 8px; line-height: 1.25; min-width: 0; }
 }
 
-.filters, .switcher, .composer__courses, .linkbtns { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-.filters::-webkit-scrollbar, .switcher::-webkit-scrollbar, .composer__courses::-webkit-scrollbar, .linkbtns::-webkit-scrollbar { display: none; }
+.filters, .composer__courses, .linkbtns { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.filters::-webkit-scrollbar, .composer__courses::-webkit-scrollbar, .linkbtns::-webkit-scrollbar { display: none; }
 .filters { margin-bottom: 22px; padding: 2px 0; }
+.filter--sm { min-height: 34px; padding: 0 12px; font-size: 0.875rem; }
+.toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin: -6px 0 8px; }
+.catseg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 14px; background: var(--surface-2); max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.catseg::-webkit-scrollbar { display: none; }
+.catseg__btn { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 13px; border-radius: 11px; font-size: 0.9375rem; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.catseg__n { min-width: 20px; padding: 0 5px; border-radius: 9px; font-size: 0.75rem; font-weight: 650; text-align: center; color: var(--ink-3); background: var(--surface-3); font-variant-numeric: tabular-nums; }
+.catseg__btn.is-on { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgb(0 0 0 / 0.06); }
+.catseg__btn.is-on .catseg__n { background: var(--ink); color: var(--bg); }
+/* Bonus is the one kind that counts for the grade – red, like everywhere else */
+.catseg__btn--bonus.is-on { color: var(--danger); }
+.catseg__btn--bonus.is-on .catseg__n { background: var(--danger); color: #fff; }
+@media (max-width: 479px) {
+  .toolbar { gap: 8px; }
+  .catseg { display: flex; width: 100%; }
+  .catseg__btn { flex: 1; justify-content: center; padding: 0 6px; gap: 5px; font-size: 0.875rem; }
+}
 /* Fach-Kacheln fit themselves into the available width instead of scrolling the last one half out
    of view. They keep their full label – wrapping a row is better than shrinking the text.
    Only genuinely narrow screens keep the scrolling strip, where wrapping would eat the viewport. */
@@ -112,45 +129,50 @@
 .pick--sm { min-height: 36px; padding: 0 12px; font-size: 0.875rem; }
 .pickchips { display: flex; flex-wrap: wrap; gap: 8px; }
 
-/* one-tap course switcher (iPad / phone) */
-.switcher { position: relative; margin: -4px -16px 18px; padding: 2px 16px; }
-.switch.is-active { border-color: var(--c); box-shadow: inset 0 0 0 1px var(--c); color: var(--ink); background: var(--surface); }
-@media (min-width: 640px) { .switcher { margin-left: -28px; margin-right: -28px; padding: 2px 28px; } }
-
 /* ---------- to-dos ---------- */
-.composer { padding: 6px 8px 6px 14px; }
-.composer__row { display: flex; align-items: center; gap: 8px; }
+.composer { display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; }
 .composer__plus { color: var(--accent); display: grid; place-items: center; }
-.composer__input { flex: 1; min-width: 0; min-height: 48px; border: 0; outline: 0; background: transparent; font-size: 1rem; }
+.composer__input { flex: 1; min-width: 0; min-height: 52px; border: 0; outline: 0; background: transparent; font-size: 1rem; }
 .composer__input::placeholder { color: var(--ink-3); }
+.composer__more { color: var(--ink-3); }
 .composer__courses { padding: 2px 0 8px 0; }
-@container page (min-width: 700px) { .composer__courses { flex-wrap: wrap; overflow: visible; } }
-.todo-groups { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
-.todo-group { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+
+/* a native select dressed as a pill: course picker without a wall of chips */
+.select-pill, .composer__course { position: relative; display: inline-flex; align-items: center; gap: 7px; flex: none; min-height: 36px; padding: 0 10px 0 12px; border-radius: 18px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); font-size: 0.875rem; font-weight: 550; }
+.select-pill select, .composer__course select { appearance: none; -webkit-appearance: none; border: 0; background: transparent; font: inherit; color: inherit; padding: 0 2px 0 0; outline: none; cursor: pointer; max-width: 11em; text-overflow: ellipsis; }
+.select-pill .icon, .composer__course .icon { color: var(--ink-3); pointer-events: none; }
+.select-pill .dot, .composer__course .dot { background: var(--c); }
+.select-pill:focus-within, .composer__course:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.select-pill.is-set { color: var(--ink); }
+.select-pill { min-height: 40px; border-radius: 20px; }
+@media (max-width: 479px) { .composer__course select { max-width: 7.5em; } }
+@media (hover: hover) { .select-pill:hover, .composer__course:hover { background: var(--surface-2); } }
+
 .todo-group__head { display: flex; align-items: center; justify-content: space-between; padding: 0 16px; min-height: 40px; border-bottom: 1px solid var(--line); font-size: 0.875rem; font-weight: 650; color: var(--ink-2); }
 .todo-group__name { display: inline-flex; align-items: center; gap: 9px; min-height: 40px; }
 .todo-group__name .icon { color: var(--ink-3); }
 
 /* ---------- home ---------- */
-.dash { display: grid; gap: 32px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'due' 'study' 'todos'; }
+.hero { margin: 4px 0 28px; }
+.hero h1 { font-size: 2.125rem; }
+.hero__summary { margin-top: 8px; font-size: 1.0625rem; color: var(--ink-2); }
+.hero__alert { white-space: nowrap; color: var(--danger); font-weight: 650; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.dash { display: grid; gap: 36px; grid-template-columns: minmax(0, 1fr); grid-template-areas: 'today' 'due' 'todos' 'study'; }
 .dash > section { margin: 0; }
 .dash__today { grid-area: today; }
 .dash__due { grid-area: due; }
 .dash__todos { grid-area: todos; }
-/* Two columns only when there is really room for them; to-dos then use the full width */
+/* Two columns only when there is really room for them */
 @container page (min-width: 800px) {
-  .dash { grid-template-columns: minmax(0, 1.25fr) minmax(300px, 1fr); grid-template-areas: 'today due' 'study due' 'todos todos'; align-items: start; column-gap: 32px; }
-}
-@container page (min-width: 860px) {
-  .todo-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+  .dash { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: 'today due' 'study todos'; align-items: start; column-gap: 36px; }
 }
 .nextexam { display: flex; align-items: center; gap: 8px; min-height: 44px; margin-top: 8px; padding: 0 4px; font-size: 0.9375rem; color: var(--ink-2); }
 .nextexam .icon { color: var(--ink-3); }
-.nextup { margin-top: 0; }
+.nextup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 12px 16px; border: 1px dashed var(--line-strong); border-radius: var(--r-lg); color: var(--ink-2); }
 .panel + .nextup { margin-top: 12px; }
-.nextup__lead { font-size: 1.0625rem; font-weight: 600; }
-.nextup__line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 6px; color: var(--ink-2); }
-.nextup__line a:not(.room) { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; font-weight: 600; }
+.nextup__label { flex-basis: 100%; font-size: 0.8125rem; font-weight: 650; color: var(--ink-3); }
+.nextup strong { color: var(--ink); }
+.nextup a:not(.room) { font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
 
 /* ---------- course page ---------- */
 .course-head { margin: 4px 0 20px; padding-left: 16px; border-left: 4px solid var(--c); }
@@ -415,8 +437,8 @@
 }
 
 /* ---------- study timer ---------- */
-/* bottom-left on touch layouts (the round buttons are on the right), bottom-right on desktop – never where toasts appear */
-.timer-pill { position: fixed; z-index: 40; left: max(16px, env(safe-area-inset-left)); bottom: calc(var(--tabbar-h) + 26px + var(--safe-b)); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 16px; border-radius: 26px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); font-size: 0.9375rem; }
+/* bottom-left on small screens, bottom-right on wide ones – toasts are centred, so they never overlap */
+.timer-pill { position: fixed; z-index: 40; left: max(16px, env(safe-area-inset-left)); bottom: calc(20px + var(--safe-b)); display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 16px; border-radius: 26px; background: var(--ink); color: var(--bg); box-shadow: var(--shadow); font-size: 0.9375rem; }
 .timer-pill .dot { box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 40%, transparent); }
 .timer-pill__name { font-weight: 550; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .timer-pill__time { font-variant-numeric: tabular-nums; font-weight: 700; min-width: 3.2em; }
@@ -434,8 +456,7 @@
 .study__legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 10px; font-size: 0.875rem; color: var(--ink-2); }
 .study__legend li { display: inline-flex; align-items: center; gap: 7px; }
 .study__legend span { color: var(--ink-3); font-variant-numeric: tabular-nums; }
-.study__start { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.study__start .btn-row { margin-top: 8px; }
+.study__start { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 
 
 /* ==========================================================================
@@ -455,7 +476,7 @@
 @media (hover: hover) { .item__link:hover { opacity: 1; } }
 
 /* Delete a personal to-do/exam right from the row – quiet until touched, red once it matters */
-.item__delete { width: 36px; height: 36px; color: var(--ink-3); opacity: 0.45; }
+.item__delete { width: 36px; height: 36px; margin-right: -8px; color: var(--ink-3); opacity: 0.45; }
 @media (hover: hover) { .item__delete:hover { opacity: 1; color: var(--danger); background: var(--danger-tint); } }
 @media (hover: none) { .item__delete { opacity: 0.7; } }
 
@@ -517,3 +538,57 @@
 .weekonly__item { display: inline-flex; align-items: center; gap: 6px; font-size: 0.875rem; color: var(--ink-2); }
 .weekonly__item em { font-style: normal; color: var(--ink-3); }
 .weekonly__item--key strong { color: var(--danger); }
+
+
+/* ==========================================================================
+   New to-do: kind (Bonus / Übung / Sonstiges) and "Wichtig"
+   ========================================================================== */
+.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.kind { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 0 10px; border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); font-weight: 600; font-size: 0.9375rem; }
+.kind .icon { color: var(--ink-3); }
+.kind.is-on { border-color: var(--ink); background: var(--ink); color: var(--bg); }
+.kind.is-on .icon { color: currentColor; }
+.kind--bonus.is-on { border-color: var(--danger); background: var(--danger); color: #fff; }
+@media (hover: hover) { .kind:not(.is-on):hover { background: var(--surface-2); } }
+
+.toggle-row { border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface); transition: border-color 0.15s, background 0.15s; }
+.toggle-row.is-on { border-color: color-mix(in srgb, var(--danger) 45%, var(--line-strong)); background: var(--danger-tint); }
+.toggle-row__hit { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px 14px; text-align: left; }
+.toggle-row__icon { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; flex: none; background: var(--surface-2); color: var(--ink-3); }
+.toggle-row.is-on .toggle-row__icon { background: var(--danger); color: #fff; }
+.toggle-row__text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.toggle-row__text strong { font-weight: 650; }
+.toggle-row__text span { font-size: 0.8125rem; color: var(--ink-3); }
+.toggle-row__note { margin-top: -8px; font-size: 0.875rem; color: var(--ink-2); line-height: 1.45; }
+.switch { position: relative; width: 46px; height: 28px; border-radius: 14px; background: var(--line-strong); flex: none; transition: background 0.18s; }
+.switch__knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); transition: transform 0.18s; }
+[aria-checked='true'] > .switch { background: var(--danger); }
+[aria-checked='true'] > .switch .switch__knob { transform: translateX(18px); }
+@media (prefers-reduced-motion: reduce) { .switch, .switch__knob { transition: none; } }
+
+/* an important own to-do: a small red bell right after its title */
+.item__important { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--danger-tint); color: var(--danger); flex: none; }
+
+/* Settings → Erinnerungen */
+.reminders__list { display: flex; flex-direction: column; margin-top: 10px; }
+.reminders__list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 0.9375rem; }
+.reminders__list li:first-child { border-top: 0; }
+.reminders__when { min-width: 11em; white-space: nowrap; flex: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.reminders__what { min-width: 0; overflow-wrap: anywhere; }
+.status-line { display: flex; align-items: flex-start; gap: 10px; color: var(--ink-2); line-height: 1.45; }
+.status-line + .status-line { margin-top: 8px; }
+.status-line .icon { margin-top: 2px; flex: none; }
+.status-line--ok .icon { color: var(--ok); }
+.status-line--off .icon { color: var(--ink-3); }
+.status-line--warn .icon { color: var(--warn); }
+.devices { margin-top: 10px; font-size: 0.875rem; color: var(--ink-3); }
+
+/* Phones: the row keeps its title readable – "in 2 Tagen" is enough, the full date is one tap away.
+   Only an overdue item keeps its date, since "Überfällig" alone does not say since when. */
+@container page (max-width: 520px) {
+  .item .row__due[class*='tone-']:not(.tone-overdue) .due-detail { display: none; }
+}
+@media (max-width: 479px) {
+  .catseg__btn:not(.is-on) .catseg__n { display: none; }
+}
+@media (max-width: 419px) { .kind .icon { display: none; } }

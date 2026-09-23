@@ -55,6 +55,10 @@ export interface AITask {
   overdue: boolean;
   daysLeft: number | null;
   editable: boolean;
+  /** bonus | uebung | rest – the same three kinds the app filters by */
+  category: string;
+  /** Own to-dos marked "wichtig" get reminders the day before and an hour before */
+  important: boolean;
 }
 
 export interface AINote {
@@ -164,6 +168,7 @@ const CONSTRAINTS = [
   'Der Stundenplan (Vorlesungen und Übungen) stammt aus einem nur lesbaren Notion-Snapshot und kann nicht geändert werden.',
   'Aufgaben aus Notion können abgehakt oder ausgeblendet, aber nicht bearbeitet werden. Ausblenden entfernt sie nur aus der Ansicht – Notion selbst bleibt unverändert.',
   'Eigene To-dos, eigene Notizen, eigene Links und eigene Prüfungstermine können angelegt, geändert und wirklich gelöscht werden.',
+  'Jedes To-do hat eine von drei Arten: bonus (zählt für die Note), uebung (Serien, Übungsblätter) oder rest. Ein eigenes To-do kann "wichtig" sein – dann schickt die App eine Erinnerung am Vortag und 1 Stunde vor der Frist.',
   'Links aus Notion sind nur lesbar. Links werden nur mit http(s)-Adresse gespeichert.',
   'Löschen bzw. Ausblenden wird nie ohne ausdrückliche Bestätigung ausgeführt (delete_task fragt immer erst nach).',
   'Offizielle Kursübungen (Serien, Bonusaufgaben, Quiz) sind nur abhakbar oder ausblendbar, nicht bearbeitbar und nicht wirklich löschbar.',
@@ -228,6 +233,8 @@ export function buildAIDynamicContext(opts: AIContextOptions = {}): AIDynamicCon
       overdue: !i.done && days !== null && days < 0,
       daysLeft: days,
       editable: i.kind !== 'notion',
+      category: i.category,
+      important: i.important,
     };
   });
 

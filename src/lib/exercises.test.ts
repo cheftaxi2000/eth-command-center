@@ -3,7 +3,7 @@ import { COURSE_EXERCISES } from '../data/exercises';
 import { seed } from '../data/seed';
 import { buildItems, hiddenItems, openWork, undatedExercises } from './data';
 import {
-  bonusFromFormula, exerciseEntries, exerciseEntry, goalProgress, isKeyRole, matchesTypeFilter, rolesInUse, visibleInWeek,
+  bonusFromFormula, categoryOfRole, exerciseEntries, exerciseEntry, goalProgress, isKeyRole, matchesCategory, rolesInUse, rolesOfCategory, visibleInWeek,
 } from './exercises';
 import { createSearch } from './search';
 import { canonical, emptySynced, mergeSynced, normalizeSynced } from './state';
@@ -138,13 +138,22 @@ describe('exercises in the shared item list', () => {
     expect(openWork(items).some((i) => i.id === 'engineering-design:quiz-1')).toBe(true);
   });
 
-  it('filters by type on the tasks page and by role in the week view', () => {
+  it('fall into exactly three kinds – Bonus, Übung, Sonstiges – for the filter and the week view', () => {
     const items = buildItems(getPersonal().synced, now);
-    const bonus = items.filter((i) => matchesTypeFilter(i, 'role:bonus'));
-    expect(bonus.length).toBe(12 + 1 + 3); // Analysis, Lineare Algebra, Informatik
-    expect(items.filter((i) => matchesTypeFilter(i, 'todo'))).toHaveLength(0);
-    expect(items.filter((i) => matchesTypeFilter(i, 'other')).every((i) => i.kind === 'notion' || i.kind === 'exam')).toBe(true);
-    expect(items.filter((i) => matchesTypeFilter(i, null))).toHaveLength(items.length);
+    // every item is in exactly one of the three
+    const [bonus, uebung, rest] = (['bonus', 'uebung', 'rest'] as const).map((c) => items.filter((i) => matchesCategory(i, c)));
+    expect(bonus.length + uebung.length + rest.length).toBe(items.length);
+    expect(items.filter((i) => matchesCategory(i, null))).toHaveLength(items.length);
+    // bonus tasks, quizzes and midterms are "Bonus" – and nothing else among the exercises is
+    expect(bonus.filter((i) => i.kind === 'exercise').every((i) => isKeyRole(i.exercise!.role))).toBe(true);
+    expect(bonus.filter((i) => i.kind === 'exercise')).toHaveLength(items.filter((i) => i.exercise?.key).length);
+    // Notion's "Serie 1" / "Problem Set 1" / "Exercise 1" are exercise work
+    expect(items.filter((i) => i.kind === 'notion').every((i) => i.category === 'uebung')).toBe(true);
+    // organisational dates are "Sonstiges"
+    expect(items.find((i) => i.id === 'engineering-design:mystudies')?.category).toBe('rest');
+    expect(categoryOfRole('admin')).toBe('rest');
+    expect(rolesOfCategory('bonus')).toEqual(['bonus', 'quiz', 'assessment']);
+    expect(rolesOfCategory('uebung')).toEqual(['normal']);
 
     expect(visibleInWeek('bonus', { weekExerciseRoles: null })).toBe(true);
     expect(visibleInWeek('bonus', { weekExerciseRoles: ['normal', 'quiz'] })).toBe(false);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { CourseSwitcher, GroupChoice, LinkButtons, LinkRow, ParityControl, linkKindLabel } from '../components/course';
+import { GroupChoice, LinkButtons, LinkRow, ParityControl, linkKindLabel } from '../components/course';
 import { ExerciseSections } from '../components/exercises';
 import { ItemRow, TodoComposer } from '../components/rows';
 import { neighbourCourse } from '../components/Shortcuts';
@@ -39,8 +39,9 @@ export function CoursePage() {
 
   // Hooks before the early return below – otherwise going from an unknown course to a real one
   // would change the number of hooks between renders.
-  const todos = items.filter((i) => i.courseId === course?.id && i.kind === 'todo');
-  const { items: openTodos, lingering } = useLingerDone(todos);
+  // Own to-dos, Notion tasks and (if any) exams in ONE list – the course's official exercises have their own section.
+  const tasks = items.filter((i) => i.courseId === course?.id && i.kind !== 'exercise');
+  const { items: openTasks, lingering } = useLingerDone(tasks);
 
   if (!course) {
     return (
@@ -52,9 +53,7 @@ export function CoursePage() {
   }
 
   const mine = items.filter((i) => i.courseId === course.id);
-  const doneTodos = todos.filter((i) => i.done && !lingering.has(i.id));
-  // Official exercises have their own section above – here only Notion deadlines and own exams.
-  const graded = mine.filter((i) => i.kind !== 'todo' && i.kind !== 'exercise');
+  const doneTasks = tasks.filter((i) => i.done && !lingering.has(i.id));
   const next = nextOccurrence(now, [course], synced.prefs);
   const nextDue = mine.find((i) => !i.done && i.due && +i.due >= +now);
   const notes = notesOf(course.id);
@@ -68,8 +67,6 @@ export function CoursePage() {
 
   return (
     <div {...swipe} key={course.id} className={cx('course-page', slide && `slide-${slide}`)}>
-      <CourseSwitcher />
-
       <header className="course-head" style={cvar(course.color)}>
         <p className="eyebrow">{course.code} · {course.semester}</p>
         <h1>{course.name}</h1>
@@ -103,35 +100,27 @@ export function CoursePage() {
         </div>
       </dl>
 
-      <ExerciseSections courseId={course.id} />
-
       <section aria-labelledby="h-todos">
-        <SectionHead id="h-todos" title="Meine To-dos" action={openTodos.length > 0 ? <span className="count">{openTodos.length} offen</span> : undefined} />
+        <SectionHead id="h-todos" title="Aufgaben" action={openTasks.length > 0 ? <span className="count">{openTasks.length} offen</span> : undefined} />
         <div className="panel">
           <TodoComposer fixedCourseId={course.id} />
-          {openTodos.length > 0 && <ul className="list list--top">{openTodos.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering.has(i.id)} />)}</ul>}
+          {openTasks.length > 0 && <ul className="list list--top">{openTasks.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering.has(i.id)} />)}</ul>}
         </div>
-        {openTodos.length === 0 && <p className="hint hint--block">Keine offenen To-dos – notier hier, was für {course.shortName} noch zu tun ist.</p>}
-        {doneTodos.length > 0 && (
-          <Accordion title={`Erledigt (${doneTodos.length})`}>
-            <ul className="panel list">{doneTodos.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse />)}</ul>
-            <button type="button" className="text-btn" onClick={() => {
-              const n = actions.clearDoneTodos(course.id);
-              toast({ text: `${n} erledigte To-dos entfernt` }, 2500);
-            }}>Erledigte entfernen</button>
+        {openTasks.length === 0 && <p className="hint hint--block">Nichts offen – notier hier, was für {course.shortName} noch zu tun ist.</p>}
+        {doneTasks.length > 0 && (
+          <Accordion title={`Erledigt (${doneTasks.length})`}>
+            <ul className="panel list">{doneTasks.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse />)}</ul>
+            {doneTasks.some((i) => i.kind === 'todo') && (
+              <button type="button" className="text-btn" onClick={() => {
+                const n = actions.clearDoneTodos(course.id);
+                toast({ text: `${n} erledigte To-dos entfernt` }, 2500);
+              }}>Erledigte To-dos entfernen</button>
+            )}
           </Accordion>
         )}
       </section>
 
-      <section aria-labelledby="h-graded">
-        <SectionHead id="h-graded" title="Abgaben & Prüfungen"
-          action={<button type="button" className="text-btn" onClick={() => ui.openEditor({ mode: 'new', kind: 'exam', courseId: course.id })}>+ Prüfung</button>} />
-        {graded.length > 0 ? (
-          <ul className="panel list">{graded.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse />)}</ul>
-        ) : (
-          <Empty>Keine Abgaben in Notion. Prüfungstermine und Gewichtungen stehen dort nicht – eine Prüfung kannst du selbst eintragen.</Empty>
-        )}
-      </section>
+      <ExerciseSections courseId={course.id} />
 
       <section aria-labelledby="h-times">
         <SectionHead id="h-times" title="Zeiten & Räume" />

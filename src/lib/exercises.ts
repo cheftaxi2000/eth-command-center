@@ -1,7 +1,7 @@
 import { COURSE_EXERCISES, ROLE_LABEL } from '../data/exercises';
 import { seed } from '../data/seed';
 import type { BonusGoal, CourseExercises, ExerciseRole, ExerciseType, OfficialExercise } from '../types';
-import type { SyncedState } from './state';
+import type { SyncedState, TodoCategory } from './state';
 import { dueMoment, isAllDay, parseLocal } from './time';
 
 /**
@@ -78,15 +78,15 @@ const ROLE_ORDER: ExerciseRole[] = ['bonus', 'quiz', 'assessment', 'normal', 'pr
 export const isKeyRole = (role: ExerciseRole): boolean => role === 'bonus' || role === 'quiz' || role === 'assessment';
 export const rolesInUse = (): ExerciseRole[] => ROLE_ORDER.filter((r) => ENTRIES.some((e) => e.type.role === r));
 
-/**
- * The tasks page filter: official exercises by role, own to-dos, or the rest (Notion + exams).
- * Pure, so the same rule can be tested and reused.
- */
-export const matchesTypeFilter = (i: { kind: string; exercise?: { role: string } }, filter: string | null): boolean =>
-  !filter ? true
-    : filter === 'todo' ? i.kind === 'todo'
-    : filter === 'other' ? i.kind === 'notion' || i.kind === 'exam'
-    : i.kind === 'exercise' && `role:${i.exercise?.role}` === filter;
+/** An official exercise's kind: bonus tasks, quizzes and midterms are "Bonus", series "Übung", organisation the rest. */
+export const categoryOfRole = (role: ExerciseRole): TodoCategory =>
+  isKeyRole(role) ? 'bonus' : role === 'normal' || role === 'project' ? 'uebung' : 'rest';
+
+/** The roles behind one of the three kinds – the week view stores roles, but offers the three kinds. */
+export const rolesOfCategory = (cat: TodoCategory): ExerciseRole[] => rolesInUse().filter((r) => categoryOfRole(r) === cat);
+
+/** The tasks page filter: one of the three kinds, or (null) everything. Pure, so it can be tested. */
+export const matchesCategory = (i: { category: TodoCategory }, cat: TodoCategory | null): boolean => !cat || i.category === cat;
 
 /**
  * Does the week view show this? `null` means "not an exercise" (lectures, to-dos, exams – always

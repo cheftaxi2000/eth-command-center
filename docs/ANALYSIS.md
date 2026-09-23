@@ -271,8 +271,50 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
   Überlauf) und dass ein eigenes To-do weiterhin wirklich gelöscht wird (nicht nur ausgeblendet) – alles
   gegen den Wegwerf-Speicher.
 
+## v10 – Menü hinter ☰, drei To-do-Arten, „Wichtig“ mit Erinnerungen, ruhigeres Design (2026-09-23)
+- **„Rubriken nur über ein Burger-Menü“:** Seitenleiste (Desktop), Tab-Leiste (iPad/Handy) und die zwei runden
+  Knöpfe sind weg. Stattdessen eine einzige Leiste oben (`TopBar`): ☰ links öffnet `NavDrawer` (Heute, Woche,
+  Aufgaben mit Zahl, Notizen, alle Kurse, Bonus, Links, Einstellungen, Sync-Status), rechts Suche, Assistent,
+  „Neues To-do“. Schließt bei Esc, Tipp daneben und jedem Tipp auf einen Eintrag – auch auf die Seite, auf der
+  man schon ist (war im ersten Test ein Fehler, behoben). Die Kurs-Chipreihe auf Heute und den Kursseiten ist
+  ebenfalls weg – die Kurse stehen im Menü.
+- **Drei Arten statt vieler Filter:** `Todo.category` = `bonus | uebung | rest`, jedes `Item` hat eine
+  `category` – eigene To-dos gespeichert (fehlt sie bei alten, wird sie aus dem Text geraten: `inferCategory`),
+  Kursübungen aus ihrer Rolle (`categoryOfRole`: Bonus/Quiz/Zwischenprüfung → Bonus, Serien → Übung,
+  Organisatorisches → Sonstiges), Notion-Aufgaben aus dem Titel. Aufgaben-Seite: ein Segment
+  Alle · Bonus · Übungen · Sonstiges mit Anzahl + Fach-Auswahl als eine Pille; „Organisatorisches“,
+  „Meine To-dos“, „Abgaben & Prüfungen“ als eigene Filter sind entfernt. Der Wochenfilter bietet dieselben drei
+  (gespeichert wird intern weiter nach Rollen – kompatibel). Rot ist jetzt überall genau „Bonus“ –
+  auch eigene Bonus-To-dos. Prüfungen werden nicht mehr als eigene Art angeboten (Knöpfe, Kürzel `P`,
+  Suchaktion entfernt); vorhandene bleiben sichtbar und bearbeitbar.
+- **„Wichtig“ → Erinnerung am Vortag und 1 Stunde vorher:** `Todo.important`. Die Regel steht in
+  `lib/reminders.ts` – bewusst ohne Imports, damit dieselbe Datei im Browser *und* in Node läuft. Zeiten in
+  Europe/Zurich (sommerzeitfest getestet), nie nach der Frist, nie für einen Zeitpunkt, der vor dem Anlegen lag,
+  nie doppelt; sind beide zugleich fällig (Dienst war aus), geht nur die spätere raus und „deckt“ die frühere.
+  Zwei Zusteller: `ReminderHost` (App offen: Toast + Systemmitteilung) und Web Push über die GitHub Action
+  `reminders.yml` → `scripts/notify/send-reminders.mjs` (web-push, VAPID). Push-Anmeldungen als neuer
+  synchronisierter Typ `SyncedState.push` (mit Tombstones; nur https-Endpunkte kommen durch
+  `normalizeSynced`). Der Dienst schreibt nur in seinen eigenen kvdb-Schlüssel, abgelaufene Geräte (404/410)
+  werden übersprungen, das Gerät meldet sich beim nächsten Öffnen selbst neu an. Service Worker:
+  `public/push-sw.js` per `workbox.importScripts`.
+- **Assistent:** `create_task`/`update_task` kennen `category` und `important`, der Kontext liefert beides mit,
+  der Regel-Modus versteht „wichtig“ („Füge eine wichtige Aufgabe hinzu: …“) und liest das nicht mehr als
+  Bonus-Frage.
+- **Design – ruhiger, weniger auf einmal:** Begrüßung mit *einem* Satz Überblick statt mehrerer Kästen; Heute zeigt
+  je Liste höchstens 5 Zeilen („… weitere“); To-dos als eine Liste statt einer Kachel pro Fach; Fach-Auswahl im
+  Eingabefeld und beim Lernblock als schlichte Auswahl statt Chip-Wand; in Zeilen nur noch ein Etikett, wenn es
+  zählt (rotes „Bonus“, Glocke für „wichtig“), „Pflicht“/Typ nur in der Detailansicht; Papierkorb bündig rechts;
+  weichere Karten (Radius 16, Haarlinie + Hauch Schatten), etwas kleinere Überschriften. Auf dem Handy wird
+  bei Fristen nur „in 2 Tagen“ gezeigt (außer bei Überfälligem), damit Titel nicht mitten im Wort umbrechen.
+- Geprüft: 118 Tests (lokal und TZ=UTC), `npm run build`; im Browser Desktop 1400 px und Handy 390 px (kein
+  seitliches Scrollen), Dunkelmodus, Menü, neues To-do mit Art/Wichtig, Erinnerung bei simulierter Zeit und
+  kein zweites Mal nach Neuladen; der Push-Dienst lief lokal gegen den Wegwerf-Speicher mit echter
+  Verschlüsselung/Signatur (ohne echtes Gerät). **Nicht** prüfbar: echte Zustellung an ein iPad/Handy – das
+  braucht das GitHub-Secret und eine echte Geräte-Erlaubnis.
+
 ## Offene Punkte
-- Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
+- Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau) – das gilt besonders für
+  die Push-Erinnerungen, die erst mit dem Secret `VAPID_PRIVATE_KEY` im Repo laufen.
 - Übungstermine hinter dem Login (Moodle, Code Expert) fehlen. Mit einem angemeldeten Browser liessen sie sich
   einmalig auslesen und in `data/exercises.ts` ergänzen; automatisch geht es nur mit einem Server, der die
   Sitzung hält – das wäre ein eigener Schritt.

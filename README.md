@@ -3,21 +3,51 @@
 Persönliche Studienübersicht für den Laptop-Browser und das iPad (installierbare PWA).
 Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „Wo finde ich das?“.
 
-- **Heute** – laufende/nächste Veranstaltung mit Countdown und Raum (Tipp → ETH-Raumplan), Fälliges der nächsten 7 Tage, To-dos pro Fach
-- **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken, Papierkorb-Symbol an der Zeile löscht direkt (mit „Rückgängig“) – gilt auch für eigene Prüfungstermine. Der Papierkorb steht an **jeder** Zeile: bei Notion-Aufgaben und Kursübungen blendet er sie aus (nicht löschbar, da schreibgeschützt) – zurückholen über Einstellungen → „Ausgeblendet“.
+- **Navigation hinter ☰** – oben links öffnet das Menü mit Heute, Woche, Aufgaben, Notizen, allen Kursen, Bonus, Links und Einstellungen. Oben rechts immer: Suche, Assistent, „Neues To-do“. Keine Seitenleiste, keine Tab-Leiste, keine schwebenden Knöpfe mehr
+- **Heute** – Begrüßung mit einem Satz Überblick („Noch 2 Termine heute · 5 fällig in 7 Tagen · 1 überfällig“), Stundenplan mit Countdown und Raum, Fälliges, eigene To-dos, Lernzeit
+- **To-dos in drei Arten** – **Bonus** (zählt für die Note, rot), **Übung** (Serien, Blätter) oder **Sonstiges**. Beim Tippen rät die App die Art („Bonusaufgabe 2“ → Bonus), änderbar. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken, Papierkorb rechts an **jeder** Zeile (eigene Einträge werden gelöscht, Notion-Aufgaben und Kursübungen ausgeblendet – zurückholen über Einstellungen → „Ausgeblendet“)
+- **Wichtig = Erinnerung** – Schalter „Wichtig“ im To-do: Mitteilung am Vortag und 1 Stunde vor der Frist (ohne Uhrzeit: am Vorabend 18 Uhr und am Tag 8 Uhr). Nur für als wichtig markierte To-dos – siehe „Erinnerungen“ unten
 - **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – Formeln, Ideen, Dinge zum Merken
 - **Woche** – Stundenplan als klares Raster: ein Rechteck pro Termin, Fachfarbe fürs Fach, Schraffur + Label für Übung vs. Vorlesung; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
-- **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
+- **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, *eine* Aufgabenliste (eigene To-dos + Notion-Fristen), Kursübungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
 - **Eigene Links** – „+ Link“ bei *Ressourcen*, unter dem Kurstitel oder auf *Links & Admin* (Taste `R`): Adresse einfügen, fertig. `https://` und Name ergänzt die App selbst (Moodle, Aufzeichnungen, PDF-Name …); Stift daneben zum Ändern/Löschen; synchronisiert wie alles andere
 - **Kursübungen** – die echten Serien, Bonusaufgaben, Quiz und Zwischenprüfungen des HS 26 pro Kurs, abhakbar (und „korrekt“/„bestanden“ separat), mit Termin, wo es einen gibt
 - **Bonus & Leistung** (`B`) – eine Seite, die pro Fach beantwortet: Gibt es einen Bonus? Wie viel? Was genau zählt? Wie weit bin ich? – mit dem Wortlaut der Quelle und dem, was nicht öffentlich ist
 - **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene mit Termin plus eigene To-dos ohne Termin und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
-- **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
+- **Suche** (Strg/⌘ K, `/` oder die Lupe oben rechts) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
 - **Assistent** – Vollbild-Chat (`C`), versteht Sätze wie „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2“ oder „Welche Bonusaufgaben habe ich noch?“, antwortet aus deinen echten Daten, **Mikrofon** zum Diktieren (siehe unten)
 - **Lernzeit** – Fokus-Timer 25/50 min pro Fach (Kursseite, „Heute“, Taste `T` oder per Assistent), Wochenbilanz pro Fach auf „Heute“
 - **Kalender-Export** – Stundenplan der nächsten 8 Wochen + alle offenen Abgaben als .ics, mit Erinnerungen am Vortag (Wochenplan → „In Kalender“)
-- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `B` Bonus & Leistung, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `R` Link, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
+- **Aufgaben** – ein Filter mit genau vier Stufen: Alle · Bonus · Übungen · Sonstiges (mit Anzahl), dazu ein Fach-Wähler
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `B` Bonus & Leistung, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `R` Link, `C` Assistent, `T` Lernblock, `S` synchronisieren, `Esc` schließt das Menü, `?` zeigt alles
 - **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
+
+## Erinnerungen
+
+Ein To-do mit Frist, das du als **Wichtig** markierst, meldet sich zweimal: am Vortag und 1 Stunde vorher.
+Das läuft auf zwei Wegen, die sich nicht doppeln (gleiche Kennung pro Erinnerung):
+
+1. **Solange die App offen ist** – sofort, ohne Einrichtung: Hinweis in der App und (wenn erlaubt) eine
+   Systemmitteilung. Logik: [`src/lib/reminders.ts`](src/lib/reminders.ts).
+2. **Auch wenn die App zu ist** – per Web Push. Die GitHub Action [`reminders.yml`](.github/workflows/reminders.yml)
+   läuft alle 10 Minuten, liest die synchronisierten To-dos, rechnet mit *derselben* Datei aus, was fällig ist,
+   und schickt es an jedes angemeldete Gerät. Was verschickt wurde, merkt sie sich in einem eigenen kvdb-Schlüssel
+   (`studium-reminders`) – sie schreibt nie in deine Daten. GitHub startet geplante Läufe manchmal ein paar
+   Minuten später; „1 Stunde vorher“ heisst also eher 45–60 Minuten.
+
+**Einmalige Einrichtung für Weg 2** (sonst nur Weg 1):
+- GitHub → Repo → *Settings → Secrets and variables → Actions → New repository secret*
+  – Name: `VAPID_PRIVATE_KEY`, Wert: der private Schlüssel aus der lokalen Datei `.vapid-private-key.local`
+  (liegt nur auf dem Rechner, auf dem er erzeugt wurde, und ist per `.gitignore` vom Repo ausgeschlossen).
+  Der öffentliche Gegenpart steht in [`src/lib/push-config.ts`](src/lib/push-config.ts). Neues Paar nötig?
+  Beide zusammen austauschen, dann jedes Gerät neu anmelden.
+- Auf jedem Gerät einmal: *Einstellungen → Erinnerungen → Mitteilungen erlauben* (oder beim ersten „Wichtig“).
+  **iPad/iPhone:** nur aus der Home-Bildschirm-App (Safari → Teilen → „Zum Home-Bildschirm“), ab iOS 16.4.
+- Kontrolle: *Einstellungen → Erinnerungen* zeigt „Erinnerungsdienst läuft · zuletzt vor … Min“, die angemeldeten
+  Geräte und die nächsten geplanten Erinnerungen. Im Actions-Tab lässt sich „Reminders“ auch von Hand starten.
+
+Die Push-Anmeldung eines Geräts liegt im (öffentlichen) Sync-Speicher. Das ist unkritisch: Senden kann nur,
+wer den privaten Schlüssel hat – und der existiert nur als GitHub-Secret.
 
 ## Übungen & Bonus im HS 26
 
@@ -47,7 +77,7 @@ Quelle) – oder einfach als eigenes To-do erfasst.
 - Die Notion-Daten liegen als lesend gezogener Snapshot in [`src/data/seed.ts`](src/data/seed.ts) (Stand 2026-09-19).
 - Die App schreibt **nie** in Notion. Eine Content-Security-Policy erlaubt technisch nur Verbindungen
   zur App selbst und – für den Sync – zu `kvdb.io`. Anfragen an Notion werden vom Browser blockiert.
-- Eigene Daten (To-dos, Notizen, Links, Prüfungen, Häkchen, Stundenplan-Wahl) liegen im Browser und werden automatisch
+- Eigene Daten (To-dos, Notizen, Links, Häkchen, Stundenplan-Wahl, Push-Anmeldungen) liegen im Browser und werden automatisch
   über einen Sync-Code abgeglichen (siehe „Sync zwischen Laptop und iPad“).
 - Nicht in Notion und deshalb **nicht erfunden**: Prüfungstermine, Credits, Noten, Vorlesungsthemen,
   deine Mechanik-Übungsgruppe (in der App einstellbar). Die Wochen der 2-wöchentlichen Analysis-Vorlesung
@@ -97,7 +127,7 @@ Offline erfasste Änderungen werden automatisch nachgeholt, sobald wieder eine V
 
 ## AI-Assistent
 
-**Öffnen:** Taste `C`, „Assistent" in der Seitenleiste oder auf iPad/Handy der runde Funken-Knopf über dem „+".
+**Öffnen:** Taste `C` oder der Funken-Knopf oben rechts (neben der Lupe).
 Er übernimmt den ganzen Bildschirm, formatiert Antworten (Listen, fett, Code) und behält den Verlauf auf diesem
 Gerät („Neuer Chat" leert ihn). Schreib z. B. „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2",
 „Ich habe morgen zwei Stunden Zeit – was soll ich lernen?" (er kennt deine freien Lücken), „Starte 25 Minuten Analysis"

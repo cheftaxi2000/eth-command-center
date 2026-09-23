@@ -1,16 +1,19 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { COURSES, TARGETS, courseById } from '../lib/data';
+import { CATEGORY_LABEL, COURSES, TARGETS, courseById } from '../lib/data';
 import { getNow } from '../lib/now';
+import { enableReminders, getPermission, isIOS, isStandalone } from '../lib/notify';
 import { KIND_LABEL, nextOccurrence } from '../lib/schedule';
-import { GENERAL_ID } from '../lib/state';
+import { CATEGORIES, GENERAL_ID, inferCategory, type TodoCategory } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
 import { DAY_SHORT, addDays, daysBetween, fmtTime, toLocalDate, toLocalISO } from '../lib/time';
 import type { SessionKind } from '../types';
 import { toast } from './toast';
-import { CourseDot, Icon, Segmented, Sheet, cx } from './ui';
+import { CourseDot, Icon, Sheet, cx, type IconName } from './ui';
 import { useUI } from './ui-context';
 
 type DueMode = 'none' | 'today' | 'tomorrow' | 'exercise' | 'lecture' | 'custom';
+
+const CATEGORY_ICON: Record<TodoCategory, IconName> = { bonus: 'trophy', uebung: 'courses', rest: 'tasks' };
 
 function relDay(d: Date): string {
   const n = daysBetween(getNow(), d);
@@ -28,13 +31,22 @@ function nextStart(courseId: string, kind: SessionKind): Date | null {
   return occ?.start ?? null;
 }
 
-/** Add / edit an own to-do or exam. Stored only in this app (and the optional GitHub sync). */
+/**
+ * Add / edit an own to-do: what, which kind (Bonus / Übung / Sonstiges), which course, until when,
+ * and whether it is important – important ones get a reminder the day before and an hour before.
+ * An existing exam can still be edited here; new ones are no longer offered.
+ */
 export function EditorSheet() {
   const { editor, closeEditor } = useUI();
   const { synced } = usePersonal();
   const [kind, setKind] = useState<'todo' | 'exam'>('todo');
   const [courseId, setCourseId] = useState(COURSES[0].id);
   const [text, setText] = useState('');
+  const [category, setCategory] = useState<TodoCategory>('rest');
+  // Once the kind was picked by hand, typing no longer re-guesses it
+  const [categoryPicked, setCategoryPicked] = useState(false);
+  const [important, setImportant] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('none');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -45,14 +57,17 @@ export function EditorSheet() {
   useEffect(() => {
     if (!editor) return;
     const today = toLocalDate(getNow());
+    setNotice(null);
     if (editor.mode === 'new') {
-      const fallback = getPersonal().local.lastCourse ?? COURSES[0].id;
-      setKind(editor.kind);
-      setCourseId(editor.courseId ?? (editor.kind === 'exam' && fallback === GENERAL_ID ? COURSES[0].id : fallback));
-      setText(editor.text ?? (editor.kind === 'exam' ? 'Prüfung' : ''));
+      setKind('todo');
+      setCourseId(editor.courseId ?? getPersonal().local.lastCourse ?? COURSES[0].id);
+      setText(editor.text ?? '');
+      setCategory(editor.category ?? inferCategory(editor.text ?? ''));
+      setCategoryPicked(!!editor.category);
+      setImportant(false);
       setDueMode('none');
       setDate(today);
-      setTime(editor.kind === 'exam' ? '09:00' : '');
+      setTime('');
       setLocation('');
     } else if (editor.kind === 'todo') {
       const t = getPersonal().synced.todos[editor.id];
@@ -60,6 +75,9 @@ export function EditorSheet() {
       setKind('todo');
       setCourseId(t.courseId);
       setText(t.text);
+      setCategory(t.category ?? inferCategory(t.text));
+      setCategoryPicked(true);
+      setImportant(!!t.important);
       setDueMode(t.due ? 'custom' : 'none');
       setDate(t.due ? t.due.slice(0, 10) : today);
       setTime(t.due && t.due.length > 10 ? t.due.slice(11, 16) : '');
@@ -92,21 +110,37 @@ export function EditorSheet() {
     }
   };
 
+  const onText = (v: string) => {
+    setText(v);
+    if (!categoryPicked && !editing) setCategory(inferCategory(v));
+  };
+
+  // A tap on the switch is the one moment a browser lets us ask for notification permission.
+  const toggleImportant = async () => {
+    const next = !important;
+    setImportant(next);
+    setNotice(null);
+    if (next && getPermission() !== 'granted') {
+      const r = await enableReminders();
+      if (!r.ok) setNotice(r.message);
+    }
+  };
+
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const value = text.trim();
     if (!value) return;
     const name = courseById(courseId)?.shortName ?? 'Allgemein';
     if (kind === 'todo') {
-      if (editing) actions.updateTodo(editing.id, { text: value, courseId, due: dueString() });
+      const due = dueString();
+      if (editing) actions.updateTodo(editing.id, { text: value, courseId, due, category, important });
       else {
-        actions.addTodo({ courseId, text: value, due: dueString() });
-        toast({ text: `To-do hinzugefügt · ${name}` }, 2500);
+        actions.addTodo({ courseId, text: value, due, category, important });
+        toast({ text: `${important ? '⚑ ' : ''}${CATEGORY_LABEL[category]} hinzugefügt · ${name}${important && due ? ' · mit Erinnerung' : ''}` }, 2800);
       }
     } else {
       if (!date) return;
       actions.saveExam({ id: editing?.id, courseId, title: value, when: `${date}T${time || '09:00'}`, location: location.trim() });
-      if (!editing) toast({ text: `Prüfung eingetragen · ${name}` }, 2500);
     }
     closeEditor();
   };
@@ -132,28 +166,32 @@ export function EditorSheet() {
     ...(lecture ? [{ mode: 'lecture' as const, label: `Nächste ${KIND_LABEL.lecture} · ${relDay(lecture)} ${fmtTime(lecture)}` }] : []),
     { mode: 'custom', label: 'Datum …' },
   ];
-
-  const title = editing ? (kind === 'todo' ? 'To-do bearbeiten' : 'Prüfung bearbeiten') : kind === 'todo' ? 'Neues To-do' : 'Prüfung eintragen';
+  const noDate = !dueString();
+  const title = editing ? (kind === 'todo' ? 'To-do bearbeiten' : 'Prüfung bearbeiten') : 'Neues To-do';
 
   return (
     <Sheet open onClose={closeEditor} title={title}>
       <form className="form" onSubmit={submit}>
-        {!editing && (
-          <Segmented label="Art" value={kind} onChange={(k) => {
-            setKind(k);
-            if (k === 'exam' && courseId === GENERAL_ID) setCourseId(COURSES[0].id);
-            if (k === 'exam' && !text) setText('Prüfung');
-            if (k === 'todo' && text === 'Prüfung') setText('');
-            setTime(k === 'exam' ? '09:00' : '');
-          }}
-            options={[{ value: 'todo', label: 'To-do' }, { value: 'exam', label: 'Prüfung' }]} />
-        )}
-
         <label className="field">
           <span>{kind === 'todo' ? 'Was ist zu tun?' : 'Titel'}</span>
-          <input autoFocus value={text} onChange={(e) => setText(e.target.value)} enterKeyHint="done"
-            placeholder={kind === 'todo' ? 'z. B. Skript Kapitel 3 nachlesen' : 'z. B. Basisprüfung'} required />
+          <input autoFocus value={text} onChange={(e) => onText(e.target.value)} enterKeyHint="done"
+            placeholder={kind === 'todo' ? 'z. B. Bonusaufgabe 2 abgeben' : 'z. B. Basisprüfung'} required />
         </label>
+
+        {kind === 'todo' && (
+          <div className="field">
+            <span>Art</span>
+            <div className="kinds" role="radiogroup" aria-label="Art">
+              {CATEGORIES.map((c) => (
+                <button key={c} type="button" role="radio" aria-checked={category === c}
+                  className={cx('kind', `kind--${c}`, category === c && 'is-on')}
+                  onClick={() => { setCategory(c); setCategoryPicked(true); }}>
+                  <Icon name={CATEGORY_ICON[c]} size={18} />{CATEGORY_LABEL[c]}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="field">
           <span>Fach</span>
@@ -168,23 +206,42 @@ export function EditorSheet() {
         </div>
 
         {kind === 'todo' ? (
-          <div className="field">
-            <span>Bis wann?</span>
-            <div className="pickchips" role="radiogroup" aria-label="Fälligkeit">
-              {dueChips.map((c) => (
-                <button key={c.mode} type="button" role="radio" aria-checked={dueMode === c.mode}
-                  className={cx('pick', dueMode === c.mode && 'is-on')} onClick={() => setDueMode(c.mode)}>
-                  {c.mode === 'custom' && <Icon name="calendar" size={16} />}{c.label}
-                </button>
-              ))}
-            </div>
-            {dueMode === 'custom' && (
-              <div className="field-row">
-                <input type="date" aria-label="Datum" value={date} onChange={(e) => setDate(e.target.value)} />
-                <input type="time" aria-label="Uhrzeit (optional)" value={time} onChange={(e) => setTime(e.target.value)} />
+          <>
+            <div className="field">
+              <span>Bis wann?</span>
+              <div className="pickchips" role="radiogroup" aria-label="Fälligkeit">
+                {dueChips.map((c) => (
+                  <button key={c.mode} type="button" role="radio" aria-checked={dueMode === c.mode}
+                    className={cx('pick', dueMode === c.mode && 'is-on')} onClick={() => setDueMode(c.mode)}>
+                    {c.mode === 'custom' && <Icon name="calendar" size={16} />}{c.label}
+                  </button>
+                ))}
               </div>
+              {dueMode === 'custom' && (
+                <div className="field-row">
+                  <input type="date" aria-label="Datum" value={date} onChange={(e) => setDate(e.target.value)} />
+                  <input type="time" aria-label="Uhrzeit (optional)" value={time} onChange={(e) => setTime(e.target.value)} />
+                </div>
+              )}
+            </div>
+
+            <div className={cx('toggle-row', important && 'is-on')}>
+              <button type="button" role="switch" aria-checked={important} className="toggle-row__hit" onClick={() => void toggleImportant()}>
+                <span className="toggle-row__icon"><Icon name="bell" size={20} /></span>
+                <span className="toggle-row__text">
+                  <strong>Wichtig</strong>
+                  <span>Erinnerung am Vortag und 1 Stunde vorher</span>
+                </span>
+                <span className="switch" aria-hidden="true"><span className="switch__knob" /></span>
+              </button>
+            </div>
+            {important && (noDate || notice || (isIOS() && !isStandalone())) && (
+              <p className="toggle-row__note">
+                {noDate ? 'Ohne Datum gibt es keine Erinnerung – wähle oben, bis wann.'
+                  : notice ?? 'Auf dem iPad kommen Mitteilungen nur über die Home-Bildschirm-App (Teilen → „Zum Home-Bildschirm“).'}
+              </p>
             )}
-          </div>
+          </>
         ) : (
           <>
             <div className="field-row">

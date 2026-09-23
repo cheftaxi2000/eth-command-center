@@ -71,6 +71,8 @@ export default defineConfig({
         // German text only needs the latin subsets – keeps the offline cache small
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         navigateFallback: 'index.html',
+        // Web Push for reminders of important to-dos (public/push-sw.js)
+        importScripts: ['push-sw.js'],
       },
     }),
   ],

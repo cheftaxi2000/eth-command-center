@@ -122,8 +122,8 @@ function DueLine({ item, compact }: { item: Item; compact?: boolean }) {
   const t = targetOf(item.courseId);
   const ex = item.exercise;
   return (
-    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo', ex && 'due-line--exercise', ex?.key && 'due-line--key')}>
-      <Icon name={ex ? (ex.key ? 'trophy' : 'courses') : item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
+    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo', ex && 'due-line--exercise', item.category === 'bonus' && 'due-line--key')}>
+      <Icon name={item.category === 'bonus' ? 'trophy' : ex ? 'courses' : item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
       <span>
         {item.title}{!item.allDay && ` · ${fmtTime(item.due!)}`}
         {!compact && <em>{t.shortName}</em>}
@@ -205,7 +205,7 @@ function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[
                   {height >= 90 && <span className="block__meta">{o.session.start}–{o.session.end}</span>}
                   {flag && height >= 60 && <Chip tone="warn">{flag}</Chip>}
                   {height >= 60 && due.slice(0, 2).map((d) => (
-                    <Chip key={d.id} tone={d.exercise?.key ? 'danger' : 'accent'}>{d.title} · {DAY_SHORT[d.due!.getDay()]} {!d.allDay && fmtTime(d.due!)}</Chip>
+                    <Chip key={d.id} tone={d.category === 'bonus' ? 'danger' : 'accent'}>{d.title} · {DAY_SHORT[d.due!.getDay()]} {!d.allDay && fmtTime(d.due!)}</Chip>
                   ))}
                 </Link>
               );

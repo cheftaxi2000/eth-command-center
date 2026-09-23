@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from 'react';
 import { normalizeUrl, suggestLabel } from './links';
 import {
-  canonical, defaultLocal, emptySynced, mergeSynced, migrateV1, normalizeSynced, uid,
-  type Exam, type LocalState, type Memo, type OwnLink, type StudySession, type SyncedState, type Todo,
+  canonical, defaultLocal, emptySynced, inferCategory, mergeSynced, migrateV1, normalizeSynced, uid,
+  type Exam, type LocalState, type Memo, type OwnLink, type PushSub, type StudySession, type SyncedState, type Todo, type TodoCategory,
 } from './state';
 
 /**
@@ -99,7 +99,7 @@ const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state,
 const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
 const now = () => Date.now();
 
-type RecordKind = 'todos' | 'exams' | 'memos' | 'links' | 'exercises' | 'study';
+type RecordKind = 'todos' | 'exams' | 'memos' | 'links' | 'exercises' | 'study' | 'push';
 
 function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
   updateSynced((s) => {
@@ -123,18 +123,25 @@ function remove(kind: RecordKind, ids: string[]) {
 }
 
 export const actions = {
-  addTodo(input: { courseId: string; text: string; due?: string }): string {
+  /** Without a kind it is guessed from the text ("Bonusaufgabe 2" → Bonus); always changeable later. */
+  addTodo(input: { courseId: string; text: string; due?: string; category?: TodoCategory; important?: boolean }): string {
     const id = uid('todo');
     const t = now();
-    put('todos', { id, courseId: input.courseId, text: input.text.trim(), due: input.due || undefined, done: false, createdAt: t, updatedAt: t });
+    const text = input.text.trim();
+    put('todos', {
+      id, courseId: input.courseId, text, due: input.due || undefined, done: false,
+      category: input.category ?? inferCategory(text), ...(input.important ? { important: true } : {}),
+      createdAt: t, updatedAt: t,
+    });
     updateLocal({ lastCourse: input.courseId });
     return id;
   },
-  updateTodo(id: string, patch: Partial<Pick<Todo, 'text' | 'due' | 'courseId' | 'done'>>) {
+  updateTodo(id: string, patch: Partial<Pick<Todo, 'text' | 'due' | 'courseId' | 'done' | 'category' | 'important'>>) {
     const cur = state.synced.todos[id];
     if (!cur) return;
     const next: Todo = { ...cur, ...patch, updatedAt: now() };
     if ('due' in patch && !patch.due) delete next.due;
+    if (!next.important) delete next.important;
     put('todos', next);
   },
   setTodoDone(id: string, done: boolean) {
@@ -314,6 +321,16 @@ export const actions = {
     const cur = state.synced.study[id];
     remove('study', [id]);
     return cur;
+  },
+
+  /** This device's Web Push subscription – the reminder service sends to every one stored here. */
+  savePushSub(sub: Omit<PushSub, 'updatedAt'>) {
+    const cur = state.synced.push[sub.id];
+    if (cur && cur.endpoint === sub.endpoint && cur.p256dh === sub.p256dh && cur.auth === sub.auth && cur.device === sub.device) return;
+    put('push', { ...sub, updatedAt: now() });
+  },
+  removePushSub(id: string) {
+    if (state.synced.push[id]) remove('push', [id]);
   },
 
   /** Deletes all own to-dos, exams, notes and links – on every synced device */

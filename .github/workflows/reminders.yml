@@ -1,0 +1,46 @@
+# Sends reminders for important to-dos as Web Push – the day before and an hour before –
+# also while the app is closed. Logic: scripts/notify/send-reminders.mjs + src/lib/reminders.ts.
+#
+# One-time setup: repo Settings → Secrets and variables → Actions → New repository secret
+#   Name: VAPID_PRIVATE_KEY   Value: the private key (see README, "Erinnerungen")
+# Without the secret every run ends right away and sends nothing.
+name: Reminders
+
+on:
+  schedule:
+    - cron: '3-59/10 * * * *' # every 10 minutes, off the full hour when GitHub is busiest
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: |
+            /package.json
+            scripts/notify
+            src/lib/reminders.ts
+            src/lib/push-config.ts
+            src/data/seed.ts
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: scripts/notify/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: scripts/notify
+      - run: node send-reminders.mjs
+        working-directory: scripts/notify
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          SYNC_BUCKET: ${{ vars.SYNC_BUCKET }}

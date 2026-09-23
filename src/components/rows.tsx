@@ -1,10 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { COURSES, TARGETS, targetOf, type Item } from '../lib/data';
+import { CATEGORY_LABEL, COURSES, TARGETS, targetOf, type Item } from '../lib/data';
 import { useNow } from '../lib/now';
 import { roomUrl } from '../lib/rooms';
 import { KIND_LABEL, suggestCourse, type Occurrence } from '../lib/schedule';
-import { GENERAL_ID } from '../lib/state';
+import { inferCategory } from '../lib/state';
 import { actions, usePersonal } from '../lib/store';
 import { dueInfo, fmtDateShort, fmtDuration, fmtTime, minutesUntil } from '../lib/time';
 import { toast } from './toast';
@@ -90,14 +90,21 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
   // Official exercises come from the course, like Notion tasks: tick them off, but never edit them here.
   const editable = item.kind !== 'notion' && item.kind !== 'exercise';
 
+  const bonus = item.category === 'bonus';
   const body = (
     <>
       <span className="row__title">
         <span className="item__text">{item.title}</span>
+        {item.important && !item.done && (
+          <span className="item__important" title="Wichtig – mit Erinnerung am Vortag und 1 Stunde vorher">
+            <Icon name="bell" size={14} /><span className="sr-only">Wichtig</span>
+          </span>
+        )}
         {item.kind === 'exam' && <Chip tone="accent">Prüfung</Chip>}
-        {/* Bonus, Quiz und Zwischenprüfungen entscheiden über die Note – die stechen rot heraus */}
-        {ex && <Chip tone={ex.key ? 'danger' : undefined}>{ex.typeShort}</Chip>}
-        {ex?.compulsory && <Chip tone="warn">Pflicht</Chip>}
+        {/* Only what decides the grade – bonus tasks, quizzes – gets a (red) label. Everything else stays quiet. */}
+        {bonus && <Chip tone="danger">{ex?.typeShort ?? 'Bonus'}</Chip>}
+        {detailed && ex && !bonus && <Chip>{ex.typeShort}</Chip>}
+        {detailed && ex?.compulsory && <Chip tone="warn">Pflicht</Chip>}
         {item.inProgress && <Chip>In Arbeit</Chip>}
       </span>
       {(!hideCourse || item.location || ex) && (
@@ -116,7 +123,7 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
   );
 
   return (
-    <li className={cx('row', 'item', ex?.key && 'item--key', item.done && 'is-done', linger && 'is-linger')}>
+    <li className={cx('row', 'item', bonus && 'item--key', item.done && 'is-done', linger && 'is-linger')}>
       {item.kind === 'exam' ? (
         <span className="row__lead" aria-hidden="true"><Icon name="flag" size={20} /></span>
       ) : (
@@ -149,22 +156,24 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
           <Icon name="check" size={14} />{correctWord(ex.role)}
         </button>
       )}
-      <button type="button" className="icon-btn item__delete" title={editable ? 'Löschen' : 'Ausblenden'}
-        aria-label={`${item.title} ${editable ? 'löschen' : 'ausblenden'}`} onClick={() => removeItem(item)}>
-        <Icon name="trash" size={18} />
-      </button>
       {info && (
         <div className={cx('row__due', !item.done && `tone-${info.tone}`)}>
           {item.done ? <span className="due-detail">{info.detail}</span> : (<><span className="due-label">{info.label}</span><span className="due-detail">{info.detail}</span></>)}
         </div>
       )}
+      {/* Last in the row, so every trash can lines up on the right edge */}
+      <button type="button" className="icon-btn item__delete" title={editable ? 'Löschen' : 'Ausblenden'}
+        aria-label={`${item.title} ${editable ? 'löschen' : 'ausblenden'}`} onClick={() => removeItem(item)}>
+        <Icon name="trash" size={18} />
+      </button>
     </li>
   );
 }
 
 /**
- * Fastest way to jot something down: type, Enter. On the home page the course chips show (and set)
- * which course it belongs to – preselected with the session that is running or just ended.
+ * Fastest way to jot something down: type, Enter. The kind is guessed from the words ("Bonusaufgabe 3"
+ * → Bonus), the course from the session that is running or just ended – both shown, both changeable:
+ * the small course pill is a plain select, the ⋯ button opens the full form (date, importance).
  */
 export function TodoComposer({ fixedCourseId, autoFocus }: { fixedCourseId?: string; autoFocus?: boolean }) {
   const now = useNow();
@@ -180,73 +189,43 @@ export function TodoComposer({ fixedCourseId, autoFocus }: { fixedCourseId?: str
   );
   const courseId = fixedCourseId ?? picked ?? suggested;
   const target = targetOf(courseId);
+  const guess = inferCategory(text);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const value = text.trim();
     if (!value) return;
     actions.addTodo({ courseId, text: value });
+    toast({ text: `${CATEGORY_LABEL[guess]} hinzugefügt · ${target.shortName}` }, 2200);
     setText('');
   };
 
   return (
     <form className="composer" onSubmit={submit}>
-      <div className="composer__row">
-        <span className="composer__plus" aria-hidden="true"><Icon name="plus" size={20} /></span>
-        <input
-          className="composer__input"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={fixedCourseId ? `Neues To-do für ${target.shortName} …` : `Neues To-do · ${target.shortName} …`}
-          aria-label="Neues To-do"
-          enterKeyHint="done"
-          autoFocus={autoFocus}
-        />
-        {text.trim() && <button type="submit" className="btn btn--primary btn--sm">Hinzufügen</button>}
-        <button type="button" className="icon-btn" aria-label="Mit Datum hinzufügen"
-          onClick={() => { ui.openEditor({ mode: 'new', kind: 'todo', courseId, text: text.trim() || undefined }); setText(''); }}>
-          <Icon name="calendar" size={20} />
-        </button>
-      </div>
+      <span className="composer__plus" aria-hidden="true"><Icon name="plus" size={20} /></span>
+      <input
+        className="composer__input"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={fixedCourseId ? `Neues To-do für ${target.shortName} …` : 'Neues To-do …'}
+        aria-label="Neues To-do"
+        enterKeyHint="done"
+        autoFocus={autoFocus}
+      />
+      {text.trim() && guess === 'bonus' && <Chip tone="danger">Bonus</Chip>}
       {!fixedCourseId && (
-        <div className="composer__courses" data-noswipe role="radiogroup" aria-label="Fach für das neue To-do">
-          {TARGETS.map((t) => (
-            <button key={t.id} type="button" role="radio" aria-checked={courseId === t.id}
-              className={cx('pick', 'pick--sm', courseId === t.id && 'is-on')} onClick={() => setPicked(t.id)}>
-              <CourseDot color={t.color} />{t.shortName}
-            </button>
-          ))}
-        </div>
+        <label className="composer__course" style={cvar(target.color)} data-noswipe>
+          <span className="dot" aria-hidden="true" />
+          <select value={courseId} onChange={(e) => setPicked(e.target.value)} aria-label="Fach für das neue To-do">
+            {TARGETS.map((t) => <option key={t.id} value={t.id}>{t.shortName}</option>)}
+          </select>
+          <Icon name="chevron-down" size={14} />
+        </label>
       )}
+      <button type="button" className="icon-btn composer__more" aria-label="Mit Datum, Art oder Erinnerung hinzufügen" title="Datum, Art, Wichtig …"
+        onClick={() => { ui.openEditor({ mode: 'new', kind: 'todo', courseId, text: text.trim() || undefined }); setText(''); }}>
+        <Icon name="calendar" size={20} />
+      </button>
     </form>
-  );
-}
-
-/** Open to-dos grouped by course (home page) – at most `limit` per course, rest behind a link */
-export function TodoGroups({ items, now, limit = 4, lingering }: { items: Item[]; now: Date; limit?: number; lingering?: Set<string> }) {
-  const groups = TARGETS.map((t) => ({ t, list: items.filter((i) => i.courseId === t.id) })).filter((g) => g.list.length > 0);
-  return (
-    <div className="todo-groups">
-      {groups.map(({ t, list }) => (
-        <section key={t.id} className="todo-group" aria-label={t.name}>
-          <h3 className="todo-group__head">
-            {t.id === GENERAL_ID ? (
-              <span className="todo-group__name"><CourseDot color={t.color} />{t.name}</span>
-            ) : (
-              <Link to={`/courses/${t.id}`} className="todo-group__name"><CourseDot color={t.color} />{t.shortName}<Icon name="chevron-right" size={16} /></Link>
-            )}
-            <span className="count">{list.length}</span>
-          </h3>
-          <ul className="list">
-            {list.slice(0, limit).map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering?.has(i.id)} />)}
-          </ul>
-          {list.length > limit && (
-            <Link className="more more--row" to={t.id === GENERAL_ID ? '/tasks' : `/courses/${t.id}`}>
-              Alle {list.length} anzeigen<Icon name="chevron-right" size={16} />
-            </Link>
-          )}
-        </section>
-      ))}
-    </div>
   );
 }

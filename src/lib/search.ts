@@ -14,7 +14,7 @@ export type Target =
   | { kind: 'todo'; id: string }
   | { kind: 'exam'; id: string }
   | { kind: 'memo'; id: string }
-  | { kind: 'action'; action: 'add-todo' | 'add-exam' | 'add-link' };
+  | { kind: 'action'; action: 'add-todo' | 'add-link' };
 
 export interface SearchDoc {
   id: string;
@@ -262,17 +262,9 @@ export function buildDocs(input: SearchInput): SearchDoc[] {
       id: 'action:add-todo',
       type: 'action',
       title: 'To-do hinzufügen',
-      subtitle: 'Für ein Fach oder allgemein',
-      text: 'To-do Todo Notiz Aufgabe neu hinzufügen erstellen',
+      subtitle: 'Bonus, Übung oder Sonstiges – auf Wunsch mit Erinnerung',
+      text: 'To-do Todo Notiz Aufgabe neu hinzufügen erstellen Bonus Übung Serie wichtig Erinnerung',
       target: { kind: 'action', action: 'add-todo' },
-    },
-    {
-      id: 'action:add-exam',
-      type: 'action',
-      title: 'Prüfungstermin eintragen',
-      subtitle: 'Steht nicht in Notion – wird nur in dieser App gespeichert',
-      text: 'Prüfung Prüfungen Klausur Exam Termin hinzufügen Assessment Session',
-      target: { kind: 'action', action: 'add-exam' },
     },
     {
       id: 'action:add-link',

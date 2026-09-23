@@ -7,6 +7,22 @@ import { isWebUrl } from './links';
 
 export const GENERAL_ID = 'allgemein';
 
+/**
+ * The three kinds of to-do the student distinguishes: what counts for the grade (bonus tasks,
+ * quizzes), ordinary exercise work (series, problem sets) and everything else.
+ */
+export type TodoCategory = 'bonus' | 'uebung' | 'rest';
+export const CATEGORIES: readonly TodoCategory[] = ['bonus', 'uebung', 'rest'];
+export const isCategory = (x: unknown): x is TodoCategory => typeof x === 'string' && (CATEGORIES as readonly string[]).includes(x);
+
+/** A good first guess from the wording – "Bonusaufgabe 2" is bonus, "Serie 3 rechnen" an exercise. */
+export function inferCategory(text: string): TodoCategory {
+  const t = text.toLowerCase();
+  if (/bonus|quiz|lernkontrolle|zwischenpr|midterm/.test(t)) return 'bonus';
+  if (/serie|übung|uebung|exercise|problem ?set|übungsblatt|blatt \d|sheet/.test(t)) return 'uebung';
+  return 'rest';
+}
+
 export interface Todo {
   id: string;
   /** Course id or GENERAL_ID */
@@ -15,7 +31,26 @@ export interface Todo {
   /** "YYYY-MM-DD" (all day) or "YYYY-MM-DDTHH:mm" */
   due?: string;
   done: boolean;
+  /** Missing on to-dos from before the three kinds existed – then guessed from the text */
+  category?: TodoCategory;
+  /** "Wichtig": reminders the day before and an hour before (see lib/reminders.ts) */
+  important?: boolean;
   createdAt: number;
+  updatedAt: number;
+}
+
+/**
+ * One device's Web Push subscription, so the reminder service can reach it while the app is closed.
+ * Keyed by a random per-device id. Harmless in the (public) sync store: sending to it also needs the
+ * private VAPID key, which only exists as a GitHub Actions secret.
+ */
+export interface PushSub {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  /** "iPad", "Chrome · Windows" – only so Settings can show which devices get reminders */
+  device: string;
   updatedAt: number;
 }
 
@@ -117,6 +152,8 @@ export interface SyncedState {
   /** Notion tasks / course exercises the student hid – see HiddenState */
   hidden: Record<string, HiddenState>;
   study: Record<string, StudySession>;
+  /** Devices that receive reminders as Web Push – see PushSub */
+  push: Record<string, PushSub>;
   taskDone: Record<string, Override>;
   prefs: Prefs;
   /** id -> deletion time, so a deletion is not undone by another device's older copy */
@@ -146,6 +183,7 @@ export const emptySynced = (): SyncedState => ({
   exercises: {},
   hidden: {},
   study: {},
+  push: {},
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
   // but a real schedule detail the student told us; still overridable in Settings.
@@ -191,6 +229,7 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
     // Same shape as taskDone: newer write wins, un-hiding is just a newer "hidden: false".
     hidden: mergeRecords(a.hidden, b.hidden, {}),
     study: mergeRecords(a.study, b.study, tombstones),
+    push: mergeRecords(a.push, b.push, tombstones),
     taskDone: mergeRecords(a.taskDone, b.taskDone, {}),
     prefs: b.prefs.updatedAt > a.prefs.updatedAt ? b.prefs : a.prefs,
     tombstones,
@@ -198,6 +237,18 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
 }
 
 const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
+
+/** Unknown kinds and non-boolean flags are dropped – the to-do itself survives. */
+function cleanTodos(todos: Record<string, Todo>): Record<string, Todo> {
+  const out: Record<string, Todo> = {};
+  for (const [id, t] of Object.entries(todos)) {
+    const next = { ...t };
+    if (!isCategory(next.category)) delete next.category;
+    if (next.important !== true) delete next.important;
+    out[id] = next;
+  }
+  return out;
+}
 
 function pick<T>(raw: unknown, valid: (x: Record<string, unknown>) => boolean): Record<string, T> {
   if (!isObj(raw)) return {};
@@ -211,7 +262,7 @@ export function normalizeSynced(raw: unknown): SyncedState {
   const prefs = isObj(raw.prefs) ? raw.prefs : {};
   return {
     v: 2,
-    todos: pick<Todo>(raw.todos, (t) => typeof t.id === 'string' && typeof t.text === 'string' && typeof t.updatedAt === 'number'),
+    todos: cleanTodos(pick<Todo>(raw.todos, (t) => typeof t.id === 'string' && typeof t.text === 'string' && typeof t.updatedAt === 'number')),
     exams: pick<Exam>(raw.exams, (e) => typeof e.id === 'string' && typeof e.when === 'string' && typeof e.updatedAt === 'number'),
     memos: pick<Memo>(raw.memos, (m) => typeof m.id === 'string' && typeof m.body === 'string' && typeof m.updatedAt === 'number'),
     // Anyone who knows the shared code can write to the store: only http(s) addresses get through.
@@ -220,6 +271,9 @@ export function normalizeSynced(raw: unknown): SyncedState {
     exercises: pick<ExerciseState>(raw.exercises, (e) => typeof e.id === 'string' && typeof e.updatedAt === 'number' && (e.url === undefined || (typeof e.url === 'string' && isWebUrl(e.url)))),
     hidden: pick<HiddenState>(raw.hidden, (h) => typeof h.id === 'string' && typeof h.hidden === 'boolean' && typeof h.updatedAt === 'number'),
     study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
+    // The store is publicly writable: only https push endpoints with both keys get through
+    push: pick<PushSub>(raw.push, (p) => typeof p.id === 'string' && typeof p.endpoint === 'string' && p.endpoint.startsWith('https://')
+      && typeof p.p256dh === 'string' && typeof p.auth === 'string' && typeof p.device === 'string' && typeof p.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {
       biweeklyParity: prefs.biweeklyParity === 'odd' || prefs.biweeklyParity === 'even' ? prefs.biweeklyParity : base.prefs.biweeklyParity,

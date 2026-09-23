@@ -189,8 +189,11 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
       : { reply: 'Ich finde keine passende Aufgabe.', calls: [] };
   }
 
+  // "Füge … hinzu: Bonusaufgabe 3" is a command to create something, not a question about bonus tasks
+  const creating = /\b(füge|fuege|hinzu|erstell\w*)\b/.test(t) || /\bneue[nrs]?\s+(aufgabe|to-?do)\b/.test(t);
+
   // --- questions about official exercises ("Welche Bonusaufgaben habe ich noch?") ---
-  if (/\b(serie|serien|bonusaufgabe\w*|bonusübung\w*|quiz|übungen|uebungen|lernkontrolle)\b/.test(t) && /\b(was|welche|wann|offen|noch|zeig|liste)\b/.test(t)) {
+  if (!creating && /\b(serie|serien|bonusaufgabe\w*|bonusübung\w*|quiz|übungen|uebungen|lernkontrolle)\b/.test(t) && /\b(was|welche|wann|offen|noch|zeig|liste)\b/.test(t)) {
     const role = /bonus/.test(t) ? 'bonus' : /quiz/.test(t) ? 'quiz' : /lernkontrolle|zwischenpr/.test(t) ? 'assessment' : undefined;
     return {
       reply: 'Deine Kursübungen:',
@@ -199,7 +202,7 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
   }
 
   // --- the bonus RULE itself ("Wie komme ich in Chemie zum Bonus?") ---
-  if (/\bbonus\w*\b|\bnotenbonus\b|\bzwischenpr\w*\b/.test(t) && !/\b(hake?|abhaken|erledigt|fertig|abgegeben)\b/.test(t)) {
+  if (!creating && /\bbonus\w*\b|\bnotenbonus\b|\bzwischenpr\w*\b/.test(t) && !/\b(hake?|abhaken|erledigt|fertig|abgegeben)\b/.test(t)) {
     return { reply: subject ? 'Die Bonusregel:' : 'Die Bonusregeln:', calls: [{ action: 'get_bonus', params: subject ? { subject } : {} }] };
   }
 
@@ -263,11 +266,13 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
   }
 
   // --- create a task ---
-  if (/\b(aufgabe|to-?do|serie|blatt|übung|uebung|problem set|abgabe)\b/.test(t) && /\b(füge|fuege|mach|erstell|neue|trag|leg|hinzu)/.test(t)) {
-    const title = cleanTitle(afterColon ?? text, [when?.phrase ?? '']) || 'Neue Aufgabe';
+  if (/\b(aufgabe|to-?do|serie|blatt|übung|uebung|problem set|abgabe|bonus\w*|quiz)\b/.test(t) && /\b(füge|fuege|mach|erstell|neue|trag|leg|hinzu)/.test(t)) {
+    // "wichtig" → with reminders; the word itself does not belong in the title
+    const important = /\bwichtig\w*\b/.test(t);
+    const title = cleanTitle((afterColon ?? text).replace(/\b(als\s+)?wichtig\w*\b/gi, ' '), [when?.phrase ?? '']) || 'Neue Aufgabe';
     return {
-      reply: `Ich lege „${title}" an${deadline ? `, fällig ${deadline}` : ''}.`,
-      calls: [{ action: 'create_task', params: { title, ...(subject ? { subject } : {}), ...(deadline ? { deadline } : {}) } }],
+      reply: `Ich lege „${title}" an${deadline ? `, fällig ${deadline}` : ''}${important ? ' – als wichtig, mit Erinnerung' : ''}.`,
+      calls: [{ action: 'create_task', params: { title, ...(subject ? { subject } : {}), ...(deadline ? { deadline } : {}), ...(important ? { important: true } : {}) } }],
     };
   }
 

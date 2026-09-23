@@ -43,13 +43,13 @@ export function useGlobalShortcuts() {
       }
       if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
       if (ui.searchOpen || ui.editor || ui.memoEditor || ui.linkEditor || ui.helpOpen || ui.assistantOpen || isTypingTarget(e.target)) return;
+      // With the menu open, a letter jumps there and closes it – no need to reach for the mouse.
 
       const key = e.key.toLowerCase();
       if (key === '/') ui.openSearch();
       else if (key === 'n') ui.openEditor({ mode: 'new', kind: 'todo', courseId });
       else if (key === 'm') ui.openMemoEditor({ mode: 'new', courseId });
       else if (key === 'r') ui.openLinkEditor({ mode: 'new', courseId });
-      else if (key === 'p') ui.openEditor({ mode: 'new', kind: 'exam', courseId });
       else if (key === 'c') ui.setAssistantOpen(true);
       else if (key === 't') {
         if (getTimer()) stopStudy();
@@ -91,7 +91,6 @@ const GROUPS: { title: string; list: [string, string][] }[] = [
       ['N', 'Neues To-do (im aktuellen Kurs)'],
       ['M', 'Neue Notiz (im aktuellen Kurs)'],
       ['R', 'Neuer Link unter Ressourcen (im aktuellen Kurs)'],
-      ['P', 'Neue Prüfung'],
       ['C', 'Assistent (Chat)'],
       ['T', 'Lernblock 25 min starten / beenden'],
     ],
@@ -102,7 +101,7 @@ const GROUPS: { title: string; list: [string, string][] }[] = [
       [`${MOD_KEY} K  oder  /`, 'Suche'],
       ['S', 'Jetzt synchronisieren'],
       ['← →', 'Vorheriger / nächster Kurs bzw. Woche'],
-      ['Esc', 'Sheet oder Suche schließen'],
+      ['Esc', 'Menü, Sheet oder Suche schließen'],
       ['?', 'Diese Übersicht'],
     ],
   },
