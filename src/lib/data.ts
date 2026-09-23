@@ -76,7 +76,7 @@ export const byDue = (a: Item, b: Item) => {
   return a.createdAt - b.createdAt;
 };
 
-export function buildItems(s: SyncedState, now: Date): Item[] {
+function rawItems(s: SyncedState, now: Date): Item[] {
   const notion: Item[] = seed.tasks.map((t) => {
     const done = s.taskDone[t.id]?.done ?? t.status === 'done';
     return { id: t.id, kind: 'notion', courseId: t.courseId, title: t.title, due: parseLocal(t.due), allDay: false, done, inProgress: !done && t.status === 'in-progress', createdAt: 0 };
@@ -130,6 +130,21 @@ export function buildItems(s: SyncedState, now: Date): Item[] {
     };
   });
   return [...notion, ...todos, ...exams, ...exercises].sort(byDue);
+}
+
+/**
+ * Everything the student can act on, minus anything they hid. Hiding is the only way to make a
+ * read-only item (Notion task, course exercise) disappear – the source itself is untouched, so this
+ * is the one place that filters it out, and every view (Tasks, Week, Course page, AI context, …)
+ * goes through here and therefore agrees.
+ */
+export function buildItems(s: SyncedState, now: Date): Item[] {
+  return rawItems(s, now).filter((i) => !s.hidden[i.id]?.hidden);
+}
+
+/** The hidden items themselves – so Settings can list them and offer "Einblenden" (undo). */
+export function hiddenItems(s: SyncedState, now: Date): Item[] {
+  return rawItems(s, now).filter((i) => !!s.hidden[i.id]?.hidden);
 }
 
 export function useItems(): Item[] {

@@ -5,7 +5,7 @@ import { toast } from '../components/toast';
 import { Icon, Segmented } from '../components/ui';
 import { useUI } from '../components/ui-context';
 import { seed } from '../data/seed';
-import { COURSES } from '../lib/data';
+import { COURSES, hiddenItems, targetOf } from '../lib/data';
 import { useTitle } from '../lib/hooks';
 import { canonical } from '../lib/state';
 import { actions, getPersonal, usePersonal } from '../lib/store';
@@ -53,6 +53,8 @@ export function SettingsPage() {
   };
 
   const ownCount = Object.keys(synced.todos).length + Object.keys(synced.exams).length + Object.keys(synced.memos).length + Object.keys(synced.links).length;
+  // Notion tasks / course exercises the student hid – the source stays untouched, this is just the way back.
+  const hidden = hiddenItems(synced, getNow());
 
   return (
     <>
@@ -136,6 +138,25 @@ export function SettingsPage() {
           ))}
         </div>
       </section>
+
+      {hidden.length > 0 && (
+        <section>
+          <h2 className="h-section spaced">Ausgeblendet ({hidden.length})</h2>
+          <div className="panel panel--pad">
+            <p className="hint hint--top">
+              Mit dem Papierkorb an einer Notion-Aufgabe oder Kursübung ausgeblendet – die Quelle bleibt unverändert, hier nur der Weg zurück.
+            </p>
+            <ul className="hidden-list">
+              {hidden.map((i) => (
+                <li key={i.id}>
+                  <span className="hidden-list__title">{i.title} <span className="muted-tag">· {targetOf(i.courseId).shortName}</span></span>
+                  <button type="button" className="text-btn" onClick={() => actions.unhideItem(i.id)}>Einblenden</button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
       <section className="only-wide">
         <h2 className="h-section spaced">Tastatur</h2>

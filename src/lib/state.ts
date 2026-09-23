@@ -84,6 +84,17 @@ export interface Override {
   updatedAt: number;
 }
 
+/**
+ * A read-only item (Notion task or official course exercise) the student hid from their lists.
+ * The source itself – seed.ts or data/exercises.ts – is never touched; this only decides whether
+ * buildItems() shows it. Reversible, so "hidden: false" (a newer write) brings it back.
+ */
+export interface HiddenState {
+  id: string;
+  hidden: boolean;
+  updatedAt: number;
+}
+
 export interface Prefs {
   /** ISO calendar-week parity in which 2-weekly lectures take place; null = not chosen yet */
   biweeklyParity: 'odd' | 'even' | null;
@@ -103,6 +114,8 @@ export interface SyncedState {
   links: Record<string, OwnLink>;
   /** Progress on the official course exercises, keyed by their read-only id */
   exercises: Record<string, ExerciseState>;
+  /** Notion tasks / course exercises the student hid – see HiddenState */
+  hidden: Record<string, HiddenState>;
   study: Record<string, StudySession>;
   taskDone: Record<string, Override>;
   prefs: Prefs;
@@ -131,6 +144,7 @@ export const emptySynced = (): SyncedState => ({
   memos: {},
   links: {},
   exercises: {},
+  hidden: {},
   study: {},
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
@@ -174,6 +188,8 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
     links: mergeRecords(a.links, b.links, tombstones),
     // Progress on read-only exercises is never deleted, only newer – like taskDone.
     exercises: mergeRecords(a.exercises, b.exercises, {}),
+    // Same shape as taskDone: newer write wins, un-hiding is just a newer "hidden: false".
+    hidden: mergeRecords(a.hidden, b.hidden, {}),
     study: mergeRecords(a.study, b.study, tombstones),
     taskDone: mergeRecords(a.taskDone, b.taskDone, {}),
     prefs: b.prefs.updatedAt > a.prefs.updatedAt ? b.prefs : a.prefs,
@@ -202,6 +218,7 @@ export function normalizeSynced(raw: unknown): SyncedState {
     links: pick<OwnLink>(raw.links, (l) => typeof l.id === 'string' && typeof l.courseId === 'string' && typeof l.label === 'string' && typeof l.url === 'string' && isWebUrl(l.url) && typeof l.createdAt === 'number' && typeof l.updatedAt === 'number'),
     // Only http(s) survives here too – the sync store is publicly writable (see lib/links.ts)
     exercises: pick<ExerciseState>(raw.exercises, (e) => typeof e.id === 'string' && typeof e.updatedAt === 'number' && (e.url === undefined || (typeof e.url === 'string' && isWebUrl(e.url)))),
+    hidden: pick<HiddenState>(raw.hidden, (h) => typeof h.id === 'string' && typeof h.hidden === 'boolean' && typeof h.updatedAt === 'number'),
     study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {

@@ -258,7 +258,18 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
 - **„Ich soll die To-dos löschen können":** Papierkorb-Symbol direkt an der Zeile (eigene To-dos und eigene
   Prüfungen), kein Umweg mehr über das Bearbeiten-Sheet nötig – mit Toast und „Rückgängig". Nutzt dieselben
   `deleteTodo`/`deleteExam`-Aktionen wie bisher, also keine neue Lösch-Logik.
-- Geprüft: 95 Tests; im Browser To-do anlegen → direkt löschen → Rückgängig, gegen den Wegwerf-Speicher.
+- **Nachtrag „ich will alles löschen können":** Auf der echten Seite hatte der Nutzer noch keine eigenen
+  To-dos – nur Notion-Aufgaben und Kursübungen, die absichtlich keinen Papierkorb hatten. Statt dessen jetzt:
+  jede Zeile bekommt den Papierkorb, bei Notion/Kursübungen **blendet** er aus statt zu löschen (neuer
+  synchronisierter Typ `SyncedState.hidden`, gemerged wie `taskDone` – neuere Schreibung gewinnt, nie ein
+  Tombstone). Die Quelle (`seed.ts`, `data/exercises.ts`) bleibt unangetastet; `buildItems()` ist die einzige
+  Stelle, die Ausgeblendetes herausfiltert, also gilt es überall gleich (Aufgaben, Woche, Kursseite, Suche,
+  AI-Kontext). Toast mit „Rückgängig", zusätzlich eine dauerhafte Liste unter Einstellungen → „Ausgeblendet"
+  zum Zurückholen. Die AI-Aktion `delete_task` blendet jetzt ebenfalls aus statt mit „kann ich nicht löschen"
+  zu scheitern (die Rückfrage sagt ehrlich „ausblenden" statt „löschen"); neue Aktion `unhide_item`.
+- Geprüft: 100 Tests; im Browser hidden/unhidden Rundlauf (Zähler, Einstellungen-Liste, Handy-Breite ohne
+  Überlauf) und dass ein eigenes To-do weiterhin wirklich gelöscht wird (nicht nur ausgeblendet) – alles
+  gegen den Wegwerf-Speicher.
 
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).

@@ -1,5 +1,5 @@
 import { COURSE_EXERCISES, ROLE_LABEL } from '../../data/exercises';
-import { COURSES, buildItems, targetOf } from '../data';
+import { COURSES, buildItems, hiddenItems, targetOf } from '../data';
 import { exerciseEntry } from '../exercises';
 import { normalizeUrl } from '../links';
 import { getNow } from '../now';
@@ -307,16 +307,37 @@ export const ACTIONS: Record<string, ActionDef> = {
 
   delete_task: {
     name: 'delete_task',
-    description: 'Ein eigenes To-do löschen. Braucht eine Bestätigung.',
+    description: 'Ein eigenes To-do oder eine eigene Prüfung löschen. Eine Aufgabe aus Notion oder eine offizielle Kursübung wird stattdessen nur ausgeblendet – die Quelle bleibt unverändert. Braucht eine Bestätigung.',
     params: { id: { type: 'id', description: 'Id der Aufgabe', required: true } },
     confirm: true,
     run: (p) => {
       const id = p.id as string;
       const found = item(id);
       if (!found) return fail('delete_task', `Es gibt keine Aufgabe mit der Id "${id}".`);
-      if (found.kind === 'notion') return fail('delete_task', `„${found.title}" kommt aus Notion und kann hier nicht gelöscht werden.`);
+      if (found.kind === 'notion' || found.kind === 'exercise') {
+        store.hideItem(id);
+        return {
+          ok: true,
+          action: 'delete_task',
+          message: `„${found.title}" ausgeblendet – kommt aus ${found.kind === 'notion' ? 'Notion' : 'dem Kurs'} und bleibt dort unverändert, taucht hier aber nicht mehr auf.`,
+          data: { id },
+        };
+      }
       const removed = found.kind === 'exam' ? store.deleteExam(id) : store.deleteTodo(id);
       return { ok: !!removed, action: 'delete_task', message: removed ? `„${found.title}" gelöscht.` : 'Nichts gelöscht.', data: { id } };
+    },
+  },
+
+  unhide_item: {
+    name: 'unhide_item',
+    description: 'Eine zuvor ausgeblendete Notion-Aufgabe oder Kursübung wieder einblenden.',
+    params: { id: { type: 'id', description: 'Id der Aufgabe oder Übung', required: true } },
+    run: (p) => {
+      const id = p.id as string;
+      const found = hiddenItems(getPersonal().synced, getNow()).find((i) => i.id === id);
+      if (!found) return fail('unhide_item', `„${id}" ist aktuell nicht ausgeblendet.`);
+      store.unhideItem(id);
+      return { ok: true, action: 'unhide_item', message: `„${found.title}" wieder eingeblendet.`, data: { id } };
     },
   },
 
@@ -623,7 +644,12 @@ export function runConfirmed(call: ActionCall): ActionResult {
 
 function confirmationQuestion(action: string, params: Record<string, unknown>): string {
   const id = params.id as string | undefined;
-  if (action === 'delete_task') return `Soll ich die Aufgabe „${id ? (item(id)?.title ?? id) : ''}" wirklich löschen?`;
+  if (action === 'delete_task') {
+    const found = id ? item(id) : undefined;
+    // A Notion task or course exercise is only ever hidden, not really deleted – the question says so.
+    const verb = found && (found.kind === 'notion' || found.kind === 'exercise') ? 'ausblenden' : 'löschen';
+    return `Soll ich „${found?.title ?? id ?? ''}" wirklich ${verb}?`;
+  }
   if (action === 'delete_note') return `Soll ich die Notiz „${id ? (getPersonal().synced.memos[id]?.title ?? id) : ''}" wirklich löschen?`;
   if (action === 'delete_link') return `Soll ich den Link „${id ? (getPersonal().synced.links[id]?.label ?? id) : ''}" wirklich löschen?`;
   return `Soll ich "${action}" wirklich ausführen?`;

@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { seed } from '../../data/seed';
 import { exerciseEntries } from '../exercises';
 import { actions, getPersonal } from '../store';
 import { buildAIContext, buildAIDynamicContext, formatAIContext } from './context';
@@ -81,6 +82,40 @@ describe('action validation', () => {
 
     expect(runConfirmed({ action: 'delete_task', params: { id } }).ok).toBe(true);
     expect(getPersonal().synced.todos[id]).toBeUndefined();
+  });
+
+  it('hides a Notion task or a course exercise instead of failing to delete it – the source stays untouched', () => {
+    const notionId = 'task-la-serie-1';
+    const exerciseId = 'lineare-algebra-1:bonus-1';
+
+    const attempt = executeAction({ action: 'delete_task', params: { id: notionId } });
+    expect(attempt).toMatchObject({ needsConfirmation: true, message: 'Soll ich „Serie 1" wirklich ausblenden?' });
+    expect(getPersonal().synced.hidden[notionId]).toBeUndefined(); // not yet – only after confirming
+
+    const done = runConfirmed({ action: 'delete_task', params: { id: notionId } });
+    expect(done).toMatchObject({ ok: true, message: expect.stringContaining('ausgeblendet') });
+    expect(getPersonal().synced.hidden[notionId]).toMatchObject({ hidden: true });
+    // seed.ts itself is never touched – buildItems just stops returning it
+    expect(seed.tasks.find((t) => t.id === notionId)).toBeDefined();
+    expect(buildAIDynamicContext().tasks.some((t) => t.id === notionId)).toBe(false);
+
+    const exAttempt = executeAction({ action: 'delete_task', params: { id: exerciseId } });
+    expect(exAttempt.message).toBe('Soll ich „Bonusaufgabe 1" wirklich ausblenden?');
+    runConfirmed({ action: 'delete_task', params: { id: exerciseId } });
+    expect(buildAIDynamicContext().exercises.some((e) => e.id === exerciseId)).toBe(false);
+
+    actions.unhideItem(notionId);
+    actions.unhideItem(exerciseId);
+  });
+
+  it('brings a hidden item back with unhide_item', () => {
+    const id = 'task-chem-ps-1';
+    actions.hideItem(id);
+    expect(executeAction({ action: 'unhide_item', params: { id: 'nie-versteckt' } }).ok).toBe(false);
+    const r = executeAction({ action: 'unhide_item', params: { id } });
+    expect(r).toMatchObject({ ok: true, message: '„Problem Set 1" wieder eingeblendet.' });
+    expect(getPersonal().synced.hidden[id].hidden).toBe(false);
+    expect(toolSpecs().find((s) => s.name === 'unhide_item')?.needsConfirmation).toBe(false); // reversible, not destructive
   });
 
   it('publishes a tool list that flags reads and confirmations', () => {

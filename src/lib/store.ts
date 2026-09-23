@@ -206,6 +206,17 @@ export const actions = {
     return true;
   },
 
+  /**
+   * Hide a read-only item (a Notion task or an official course exercise) from every list. The
+   * source stays exactly as it is – this is a per-student preference, reversible with unhideItem.
+   */
+  hideItem(id: string) {
+    updateSynced((s) => ({ ...s, hidden: { ...s.hidden, [id]: { id, hidden: true, updatedAt: now() } } }));
+  },
+  unhideItem(id: string) {
+    updateSynced((s) => ({ ...s, hidden: { ...s.hidden, [id]: { id, hidden: false, updatedAt: now() } } }));
+  },
+
   /** A plain counter for things a course has no individual entries for ("10 Serien abgegeben"). */
   setExerciseCount(tallyId: string, count: number) {
     put('exercises', { ...state.synced.exercises[tallyId], id: tallyId, count: Math.max(0, Math.round(count)), updatedAt: now() });

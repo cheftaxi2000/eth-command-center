@@ -162,11 +162,11 @@ export interface AIContext {
 
 const CONSTRAINTS = [
   'Der Stundenplan (Vorlesungen und Übungen) stammt aus einem nur lesbaren Notion-Snapshot und kann nicht geändert werden.',
-  'Aufgaben aus Notion können abgehakt, aber nicht bearbeitet oder gelöscht werden.',
-  'Eigene To-dos, eigene Notizen, eigene Links und eigene Prüfungstermine können angelegt, geändert und gelöscht werden.',
+  'Aufgaben aus Notion können abgehakt oder ausgeblendet, aber nicht bearbeitet werden. Ausblenden entfernt sie nur aus der Ansicht – Notion selbst bleibt unverändert.',
+  'Eigene To-dos, eigene Notizen, eigene Links und eigene Prüfungstermine können angelegt, geändert und wirklich gelöscht werden.',
   'Links aus Notion sind nur lesbar. Links werden nur mit http(s)-Adresse gespeichert.',
-  'Löschen wird nie ohne ausdrückliche Bestätigung ausgeführt.',
-  'Offizielle Kursübungen (Serien, Bonusaufgaben, Quiz) sind nur abhakbar, nicht bearbeitbar oder löschbar.',
+  'Löschen bzw. Ausblenden wird nie ohne ausdrückliche Bestätigung ausgeführt (delete_task fragt immer erst nach).',
+  'Offizielle Kursübungen (Serien, Bonusaufgaben, Quiz) sind nur abhakbar oder ausblendbar, nicht bearbeitbar und nicht wirklich löschbar.',
   'Termine, die unter "dateNote" stehen, sind nicht öffentlich bekannt – solche Termine nie erfinden, sondern sagen, wo sie stehen.',
 ];
 

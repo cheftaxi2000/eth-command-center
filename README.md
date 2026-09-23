@@ -4,7 +4,7 @@ Persönliche Studienübersicht für den Laptop-Browser und das iPad (installierb
 Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „Wo finde ich das?“.
 
 - **Heute** – laufende/nächste Veranstaltung mit Countdown und Raum (Tipp → ETH-Raumplan), Fälliges der nächsten 7 Tage, To-dos pro Fach
-- **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken, Papierkorb-Symbol an der Zeile löscht direkt (mit „Rückgängig“) – gilt auch für eigene Prüfungstermine.
+- **To-dos pro Fach** – eintippen, Enter, fertig. Optional mit Frist („Heute“, „Morgen“, „Nächste Übung“, „Nächste Vorlesung“, Datum). Erledigt = grüner Haken, Papierkorb-Symbol an der Zeile löscht direkt (mit „Rückgängig“) – gilt auch für eigene Prüfungstermine. Der Papierkorb steht an **jeder** Zeile: bei Notion-Aufgaben und Kursübungen blendet er sie aus (nicht löschbar, da schreibgeschützt) – zurückholen über Einstellungen → „Ausgeblendet“.
 - **Notizen** – eigene, freie Notizen (nicht aus Notion), optional einem Fach zugeordnet – Formeln, Ideen, Dinge zum Merken
 - **Woche** – Stundenplan als klares Raster: ein Rechteck pro Termin, Fachfarbe fürs Fach, Schraffur + Label für Übung vs. Vorlesung; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen

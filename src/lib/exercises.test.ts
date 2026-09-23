@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { COURSE_EXERCISES } from '../data/exercises';
 import { seed } from '../data/seed';
-import { buildItems, openWork, undatedExercises } from './data';
+import { buildItems, hiddenItems, openWork, undatedExercises } from './data';
 import {
   bonusFromFormula, exerciseEntries, exerciseEntry, goalProgress, isKeyRole, matchesTypeFilter, rolesInUse, visibleInWeek,
 } from './exercises';
@@ -207,5 +207,51 @@ describe('storing the progress', () => {
     expect(getPersonal().synced.prefs.weekExerciseRoles).toEqual(['bonus']);
     actions.setWeekExerciseRoles(null);
     expect(getPersonal().synced.prefs.weekExerciseRoles).toBeNull();
+  });
+});
+
+describe('hiding a read-only item (Notion task or course exercise)', () => {
+  const notionId = 'task-info-ex-1';
+  const exerciseId = 'chemistry:quiz-1';
+
+  afterEach(() => {
+    actions.unhideItem(notionId);
+    actions.unhideItem(exerciseId);
+  });
+
+  it('removes it from buildItems and lists it in hiddenItems – the source stays put', () => {
+    expect(buildItems(getPersonal().synced, now).some((i) => i.id === notionId)).toBe(true);
+    actions.hideItem(notionId);
+    expect(buildItems(getPersonal().synced, now).some((i) => i.id === notionId)).toBe(false);
+    const h = hiddenItems(getPersonal().synced, now);
+    expect(h.map((i) => i.id)).toContain(notionId);
+    expect(h.find((i) => i.id === notionId)?.title).toBe('Exercise 1'); // still has its real title
+    expect(seed.tasks.find((t) => t.id === notionId)).toBeDefined(); // seed.ts untouched
+
+    actions.hideItem(exerciseId);
+    expect(buildItems(getPersonal().synced, now).some((i) => i.id === exerciseId)).toBe(false);
+    expect(COURSE_EXERCISES.chemistry.exercises.find((e) => e.id === exerciseId)).toBeDefined(); // config untouched
+
+    actions.unhideItem(notionId);
+    expect(buildItems(getPersonal().synced, now).some((i) => i.id === notionId)).toBe(true);
+    expect(hiddenItems(getPersonal().synced, now).some((i) => i.id === notionId)).toBe(false);
+  });
+
+  it('is a synced record like taskDone: newer write wins, malformed entries are dropped, old backups default to none', () => {
+    const a = { ...emptySynced(), hidden: { x: { id: 'x', hidden: true, updatedAt: 1 } } };
+    const b = { ...emptySynced(), hidden: { x: { id: 'x', hidden: false, updatedAt: 5 } } };
+    expect(mergeSynced(a, b, 10).hidden).toEqual({ x: { id: 'x', hidden: false, updatedAt: 5 } });
+    expect(canonical(mergeSynced(b, a, 10))).toBe(canonical(mergeSynced(a, b, 10)));
+
+    expect(normalizeSynced({ hidden: { ok: { id: 'ok', hidden: true, updatedAt: 1 }, bad: { id: 'bad' } } }).hidden)
+      .toEqual({ ok: { id: 'ok', hidden: true, updatedAt: 1 } });
+    expect(normalizeSynced({ todos: {} }).hidden).toEqual({}); // a backup from before this feature existed
+  });
+
+  it('a personal to-do or exam is never merely hidden – deleteTodo/deleteExam really remove it', () => {
+    const id = actions.addTodo({ courseId: 'analysis-1', text: 'weg damit' });
+    actions.deleteTodo(id);
+    expect(getPersonal().synced.todos[id]).toBeUndefined();
+    expect(getPersonal().synced.hidden[id]).toBeUndefined();
   });
 });

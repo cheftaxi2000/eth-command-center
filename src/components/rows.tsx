@@ -59,14 +59,22 @@ function toggleItem(item: Item, done: boolean) {
   if (done) toast({ text: `Erledigt: ${item.title}`, action: { label: 'Rückgängig', run: () => set(false) } }, 3500);
 }
 
-/** Delete a personal to-do or exam right from the row – no need to open the sheet first. */
-function deleteItem(item: Item) {
+/**
+ * The trash button works on every row, but means two different things depending on where the item
+ * comes from: an own to-do/exam is really deleted; a Notion task or official course exercise is
+ * hidden instead – the source (Notion snapshot, course data) is never touched, only removed from
+ * view, and it comes back with "Rückgängig" or from Einstellungen → Ausgeblendet.
+ */
+function removeItem(item: Item) {
   if (item.kind === 'exam') {
     const removed = actions.deleteExam(item.id);
     if (removed) toast({ text: `Gelöscht: ${item.title}`, action: { label: 'Rückgängig', run: () => actions.restoreExam(removed) } }, 3500);
   } else if (item.kind === 'todo') {
     const removed = actions.deleteTodo(item.id);
     if (removed) toast({ text: `Gelöscht: ${item.title}`, action: { label: 'Rückgängig', run: () => actions.restoreTodo(removed) } }, 3500);
+  } else {
+    actions.hideItem(item.id);
+    toast({ text: `Ausgeblendet: ${item.title}`, action: { label: 'Rückgängig', run: () => actions.unhideItem(item.id) } }, 3500);
   }
 }
 
@@ -119,14 +127,12 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
           onClick={() => ui.openEditor({ mode: 'edit', kind: item.kind === 'exam' ? 'exam' : 'todo', id: item.id })}>
           {body}
         </button>
+      ) : ex && ex.url ? (
+        <a className="item__body" href={ex.url} target="_blank" rel="noopener noreferrer" title={`${ex.typeLabel} öffnen`}>{body}</a>
       ) : ex ? (
-        ex.url ? (
-          <a className="item__body" href={ex.url} target="_blank" rel="noopener noreferrer" title={`${ex.typeLabel} öffnen`}>{body}</a>
-        ) : (
-          <div className="item__body" title={`${ex.typeLabel}${ex.where ? ` · ${ex.where}` : ''} – offizielle Kursangabe, hier nur abhakbar.`}>{body}</div>
-        )
+        <div className="item__body" title={`${ex.typeLabel}${ex.where ? ` · ${ex.where}` : ''} – offizielle Kursangabe, hier nur abhakbar oder ausblendbar.`}>{body}</div>
       ) : (
-        <div className="item__body" title="Aus Notion – dort bearbeiten. Abhaken gilt nur in dieser App.">{body}</div>
+        <div className="item__body" title="Aus Notion – dort bearbeiten. Hier abhaken oder ausblenden.">{body}</div>
       )}
       {detailed && ex && (
         <button type="button" className={cx('icon-btn', 'item__link', ex.ownUrl && 'is-set')}
@@ -143,12 +149,10 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
           <Icon name="check" size={14} />{correctWord(ex.role)}
         </button>
       )}
-      {editable && (
-        <button type="button" className="icon-btn item__delete" title="Löschen"
-          aria-label={`${item.title} löschen`} onClick={() => deleteItem(item)}>
-          <Icon name="trash" size={18} />
-        </button>
-      )}
+      <button type="button" className="icon-btn item__delete" title={editable ? 'Löschen' : 'Ausblenden'}
+        aria-label={`${item.title} ${editable ? 'löschen' : 'ausblenden'}`} onClick={() => removeItem(item)}>
+        <Icon name="trash" size={18} />
+      </button>
       {info && (
         <div className={cx('row__due', !item.done && `tone-${info.tone}`)}>
           {item.done ? <span className="due-detail">{info.detail}</span> : (<><span className="due-label">{info.label}</span><span className="due-detail">{info.detail}</span></>)}
