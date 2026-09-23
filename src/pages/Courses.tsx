@@ -44,6 +44,13 @@ export function CoursesPage() {
           </Link>
         </li>
         <li>
+          <Link to="/bonus" className="row row--link">
+            <Icon name="trophy" size={20} />
+            <span className="row__main"><span className="row__title">Bonus & Leistung</span><span className="row__meta"><span>Wie du in jedem Fach zum Bonus kommst – mit deinem Stand</span></span></span>
+            <Icon name="chevron-right" size={18} />
+          </Link>
+        </li>
+        <li>
           <Link to="/links" className="row row--link">
             <Icon name="link" size={20} />
             <span className="row__main"><span className="row__title">Links & Admin</span><span className="row__meta"><span>Curriculum, Administratives, alle Kurslinks</span></span></span>

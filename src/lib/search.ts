@@ -1,11 +1,12 @@
 import MiniSearch from 'minisearch';
+import { COURSE_EXERCISES } from '../data/exercises';
 import type { AdminLink, Course, Note, Task } from '../types';
 import { hostOf as host } from './links';
 import { KIND_LABEL } from './schedule';
 import { GENERAL_ID, type Exam, type Memo, type OwnLink, type Todo } from './state';
 import { DAY_LONG, DAY_SHORT, dueMoment, fmtDateShort, fmtTime, isAllDay, parseLocal } from './time';
 
-export type SearchType = 'course' | 'todo' | 'deadline' | 'exam' | 'session' | 'note' | 'memo' | 'topic' | 'instructor' | 'link' | 'action';
+export type SearchType = 'course' | 'todo' | 'deadline' | 'exam' | 'exercise' | 'session' | 'note' | 'memo' | 'topic' | 'instructor' | 'link' | 'action';
 
 export type Target =
   | { kind: 'route'; to: string }
@@ -42,6 +43,7 @@ export const TYPE_LABEL: Record<SearchType, string> = {
   todo: 'Meine To-dos',
   deadline: 'Abgaben',
   exam: 'Prüfungen',
+  exercise: 'Übungen & Bonus',
   session: 'Termine',
   note: 'Notizen',
   memo: 'Meine Notizen',
@@ -51,7 +53,7 @@ export const TYPE_LABEL: Record<SearchType, string> = {
   action: 'Aktionen',
 };
 
-const TYPE_ORDER: SearchType[] = ['course', 'todo', 'memo', 'deadline', 'exam', 'session', 'note', 'topic', 'instructor', 'link', 'action'];
+const TYPE_ORDER: SearchType[] = ['course', 'todo', 'memo', 'deadline', 'exercise', 'exam', 'session', 'note', 'topic', 'instructor', 'link', 'action'];
 const TYPE_BOOST: Partial<Record<SearchType, number>> = { course: 1.8, todo: 1.2, memo: 1.1, action: 0.7, session: 0.9 };
 
 export const normalize = (t: string) => t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -130,6 +132,32 @@ export function buildDocs(input: SearchInput): SearchDoc[] {
         target: { kind: 'external', url: l.url },
       });
     }
+  }
+
+  // Official course exercises and each course's bonus rule – read-only course data, like the seed
+  for (const cfg of Object.values(COURSE_EXERCISES)) {
+    const c = course(cfg.courseId);
+    for (const e of cfg.exercises) {
+      const type = cfg.types.find((x) => x.id === e.typeId);
+      docs.push({
+        id: `exercise:${e.id}`,
+        type: 'exercise',
+        title: e.title,
+        subtitle: `${c?.name ?? ''} · ${type?.label ?? ''}`,
+        text: [type?.label, type?.role, type?.where, e.detail, e.dateNote, 'Übung Übungen Aufgabe', about(cfg.courseId)].filter(Boolean).join(' '),
+        courseId: cfg.courseId,
+        target: { kind: 'route', to: `/courses/${cfg.courseId}` },
+      });
+    }
+    docs.push({
+      id: `bonus:${cfg.courseId}`,
+      type: 'exercise',
+      title: `Bonus: ${c?.name ?? cfg.courseId}`,
+      subtitle: cfg.bonus.headline,
+      text: [cfg.bonus.max, cfg.bonus.quote, cfg.bonus.facts.map((f) => `${f.q} ${f.a}`).join(' '), 'Bonus Notenbonus Regel Leistung Prüfungsleistung', about(cfg.courseId)].filter(Boolean).join(' '),
+      courseId: cfg.courseId,
+      target: { kind: 'route', to: `/bonus#${cfg.courseId}` },
+    });
   }
 
   for (const t of todos) {

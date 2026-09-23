@@ -38,6 +38,7 @@ const SYSTEM = [
   'Formatiere mit einfachem Markdown: kurze Listen, **fett** für Zeiten, Räume und Fristen. Keine Überschriften bei kurzen Antworten.',
   'Für Lernpläne nutze die freien Zeitfenster (free) aus dem Stundenplan und die nächsten Fristen.',
   'Links gibst du als Markdown-Link [Name](Adresse) aus, nur mit Adressen aus dem Kontext.',
+  'Offizielle Kursübungen und Bonusregeln stehen im Kontext; nenne Bedingungen so, wie der Kurs sie formuliert, und erfinde nie einen Termin, der dort nicht steht.',
 ].join(' ');
 
 /** Today's date as the very first thing the model reads – so "morgen" can never be a question. */

@@ -123,10 +123,13 @@ describe('items', () => {
       exams: { e1: { id: 'e1', courseId: 'analysis-1', title: 'Prüfung', when: '2027-02-08T09:00', updatedAt: 1 } },
     };
     const items = buildItems(s, now);
-    expect(items).toHaveLength(8);
-    expect(items.find((i) => i.id === 'task-ana-serie-1')?.done).toBe(true);
-    expect(items.at(-1)?.id).toBe('a');
-    expect(dueWithin(items, now, 7).map((i) => i.id)).toEqual(['b', 'task-la-serie-1', 'task-chem-ps-1']);
+    // Official course exercises ride along in the same list – here we look at the rest
+    const own = items.filter((i) => i.kind !== 'exercise');
+    expect(own).toHaveLength(8);
+    expect(own.find((i) => i.id === 'task-ana-serie-1')?.done).toBe(true);
+    expect(own.at(-1)?.id).toBe('a');
+    // … and an official deadline sorts in by date like everything else
+    expect(dueWithin(items, now, 7).map((i) => i.id)).toEqual(['b', 'task-la-serie-1', 'lineare-algebra-1:bonus-1', 'task-chem-ps-1']);
     expect(backlog(items, now, 7).map((i) => i.id)).toEqual(['c', 'a']);
   });
 });

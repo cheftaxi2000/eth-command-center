@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { exerciseEntries } from '../exercises';
 import { actions, getPersonal } from '../store';
 import { buildAIContext, buildAIDynamicContext, formatAIContext } from './context';
 import { executeAction, resolveSubject, runConfirmed, toolSpecs, validateAction } from './actions';
@@ -316,5 +317,61 @@ describe('links through the assistant', () => {
     expect(tools[0].function.parameters.required).toEqual(['url']);
     expect(tools[0].function.parameters.properties.url).toMatchObject({ type: 'string' });
     expect(String((tools[0].function.parameters.properties.url as { description: string }).description)).toMatch(/https/);
+  });
+});
+
+describe('official course exercises and bonus rules', () => {
+  beforeEach(() => {
+    for (const e of exerciseEntries()) actions.setExerciseDone(e.exercise.id, false);
+    actions.setExerciseCount('chemistry:series', 0);
+    actions.setWeekExerciseRoles(null);
+  });
+
+  it('puts the exercises and every course rule into the context, apart from the to-dos', () => {
+    const d = buildAIDynamicContext();
+    expect(d.tasks.every((t) => t.origin !== ('exercise' as unknown))).toBe(true);
+    const ba = d.exercises.find((e) => e.id === 'lineare-algebra-1:bonus-1')!;
+    expect(ba).toMatchObject({ type: 'Bonusaufgabe', role: 'bonus', bonusRelevant: true, deadline: '2026-09-25T10:00', status: 'open' });
+    expect(d.exercises.find((e) => e.id === 'analysis-1:bonus-7')).toMatchObject({ deadline: null, dateNote: expect.stringContaining('Moodle') });
+    expect(d.exercises.find((e) => e.id === 'engineering-design:quiz-1')).toMatchObject({ weekOf: '2026-11-09' });
+
+    const chem = d.bonus.find((b) => b.subjectId === 'chemistry')!;
+    expect(chem.quote).toContain('2 of these 3 graded quizzes');
+    expect(chem.progress.map((p) => p.required)).toEqual([2, 10]);
+    expect(chem.unverified.join(' ')).toMatch(/dates will be announced/);
+
+    const text = formatAIContext(buildAIContext());
+    expect(text).toContain('## Bonus / Leistung pro Fach');
+    expect(text).toContain('Kein Übungsbonus'); // Mechanik keeps its own system
+    expect(text).toContain('[analysis-1:bonus-1]');
+  });
+
+  it('ticks an exercise off through the action layer, with its correctness', () => {
+    expect(executeAction({ action: 'complete_exercise', params: { id: 'gibt-es-nicht' } }).ok).toBe(false);
+    const r = executeAction({ action: 'complete_exercise', params: { id: 'analysis-1:bonus-1', correct: true } });
+    expect(r).toMatchObject({ ok: true, message: '„Bonusaufgabe 1" (Analysis I) ist erledigt und korrekt.' });
+    expect(getPersonal().synced.exercises['analysis-1:bonus-1']).toMatchObject({ done: true, correct: true });
+    expect(buildAIDynamicContext().bonus.find((b) => b.subjectId === 'analysis-1')!.progress[0]).toMatchObject({ have: 1, required: 9 });
+    executeAction({ action: 'complete_exercise', params: { id: 'analysis-1:bonus-1', done: false } });
+    expect(getPersonal().synced.exercises['analysis-1:bonus-1']).toMatchObject({ done: false, correct: false });
+  });
+
+  it('keeps counters and the week filter inside the validated action layer', () => {
+    expect(executeAction({ action: 'set_exercise_counter', params: { counter: 'erfunden', count: 3 } }).ok).toBe(false);
+    expect(executeAction({ action: 'set_exercise_counter', params: { counter: 'chemistry:series', count: 4 } }).ok).toBe(true);
+    expect(getPersonal().synced.exercises['chemistry:series'].count).toBe(4);
+
+    expect(executeAction({ action: 'set_week_exercise_filter', params: { types: 'bonus, quiz' } }).ok).toBe(true);
+    expect(getPersonal().synced.prefs.weekExerciseRoles).toEqual(['bonus', 'quiz']);
+    expect(executeAction({ action: 'set_week_exercise_filter', params: { types: 'hausaufgaben' } }).ok).toBe(false);
+    expect(executeAction({ action: 'set_week_exercise_filter', params: { types: 'alle' } }).ok).toBe(true);
+    expect(getPersonal().synced.prefs.weekExerciseRoles).toBeNull();
+  });
+
+  it('understands the questions in the rule mode too', () => {
+    expect(parseIntent('Welche Bonusregeln gelten für Chemie?', NOW).calls[0]).toEqual({ action: 'get_bonus', params: { subject: 'chemistry' } });
+    expect(parseIntent('Wie weit bin ich mit dem Analysis-Bonus?', NOW).calls[0]).toEqual({ action: 'get_bonus', params: { subject: 'analysis-1' } });
+    expect(parseIntent('Welche Bonusaufgaben habe ich noch offen?', NOW).calls[0]).toEqual({ action: 'get_exercises', params: { status: 'open', role: 'bonus' } });
+    expect(parseIntent('Hake Bonusaufgabe 1 als korrekt ab', NOW).calls[0]).toMatchObject({ action: 'complete_exercise', params: { correct: true } });
   });
 });

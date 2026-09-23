@@ -61,6 +61,21 @@ export interface StudySession {
   updatedAt: number;
 }
 
+/**
+ * The student's progress on one official course exercise (src/data/exercises.ts) – or, when the
+ * course has no individual entries for something, a plain counter (`count`, e.g. "Serien abgegeben").
+ * The exercise itself is read-only course data; only this progress belongs to the user.
+ */
+export interface ExerciseState {
+  id: string;
+  done?: boolean;
+  /** Correct / passed, for the types where the course tracks that separately */
+  correct?: boolean;
+  /** For manual counters */
+  count?: number;
+  updatedAt: number;
+}
+
 /** Local check-off of a (read-only) Notion task */
 export interface Override {
   done: boolean;
@@ -72,6 +87,8 @@ export interface Prefs {
   biweeklyParity: 'odd' | 'even' | null;
   /** choiceGroup -> chosen session id */
   choices: Record<string, string>;
+  /** Exercise roles shown in the week view; null = all of them (a filter, never a deletion) */
+  weekExerciseRoles: string[] | null;
   updatedAt: number;
 }
 
@@ -82,6 +99,8 @@ export interface SyncedState {
   exams: Record<string, Exam>;
   memos: Record<string, Memo>;
   links: Record<string, OwnLink>;
+  /** Progress on the official course exercises, keyed by their read-only id */
+  exercises: Record<string, ExerciseState>;
   study: Record<string, StudySession>;
   taskDone: Record<string, Override>;
   prefs: Prefs;
@@ -109,11 +128,12 @@ export const emptySynced = (): SyncedState => ({
   exams: {},
   memos: {},
   links: {},
+  exercises: {},
   study: {},
   taskDone: {},
   // The Analysis I Monday lecture is confirmed to run on even ISO weeks – not a Notion fact,
   // but a real schedule detail the student told us; still overridable in Settings.
-  prefs: { biweeklyParity: 'even', choices: { ...DEFAULT_CHOICES }, updatedAt: 0 },
+  prefs: { biweeklyParity: 'even', choices: { ...DEFAULT_CHOICES }, weekExerciseRoles: null, updatedAt: 0 },
   tombstones: {},
 });
 
@@ -150,6 +170,8 @@ export function mergeSynced(a: SyncedState, b: SyncedState, now = Date.now()): S
     exams: mergeRecords(a.exams, b.exams, tombstones),
     memos: mergeRecords(a.memos, b.memos, tombstones),
     links: mergeRecords(a.links, b.links, tombstones),
+    // Progress on read-only exercises is never deleted, only newer – like taskDone.
+    exercises: mergeRecords(a.exercises, b.exercises, {}),
     study: mergeRecords(a.study, b.study, tombstones),
     taskDone: mergeRecords(a.taskDone, b.taskDone, {}),
     prefs: b.prefs.updatedAt > a.prefs.updatedAt ? b.prefs : a.prefs,
@@ -176,12 +198,15 @@ export function normalizeSynced(raw: unknown): SyncedState {
     memos: pick<Memo>(raw.memos, (m) => typeof m.id === 'string' && typeof m.body === 'string' && typeof m.updatedAt === 'number'),
     // Anyone who knows the shared code can write to the store: only http(s) addresses get through.
     links: pick<OwnLink>(raw.links, (l) => typeof l.id === 'string' && typeof l.courseId === 'string' && typeof l.label === 'string' && typeof l.url === 'string' && isWebUrl(l.url) && typeof l.createdAt === 'number' && typeof l.updatedAt === 'number'),
+    exercises: pick<ExerciseState>(raw.exercises, (e) => typeof e.id === 'string' && typeof e.updatedAt === 'number'),
     study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {
       biweeklyParity: prefs.biweeklyParity === 'odd' || prefs.biweeklyParity === 'even' ? prefs.biweeklyParity : base.prefs.biweeklyParity,
       // Defaults first: an install from before a choice was known must not keep asking for it.
       choices: { ...DEFAULT_CHOICES, ...(isObj(prefs.choices) ? (prefs.choices as Record<string, string>) : {}) },
+      // Missing (older installs) means "show everything", which is also what null means.
+      weekExerciseRoles: Array.isArray(prefs.weekExerciseRoles) ? prefs.weekExerciseRoles.filter((r): r is string => typeof r === 'string') : null,
       updatedAt: typeof prefs.updatedAt === 'number' ? prefs.updatedAt : 0,
     },
     tombstones: isObj(raw.tombstones)
@@ -209,6 +234,7 @@ export function migrateV1(v1: V1, now = Date.now()): { synced: SyncedState; loca
   for (const [id, done] of Object.entries(v1.taskDone ?? {})) synced.taskDone[id] = { done, updatedAt: now };
   if (v1.prefs) {
     synced.prefs = {
+      ...synced.prefs,
       biweeklyParity: v1.prefs.biweeklyParity ?? synced.prefs.biweeklyParity,
       choices: { ...synced.prefs.choices, ...v1.prefs.choices },
       updatedAt: now,

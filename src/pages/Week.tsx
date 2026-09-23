@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ExerciseFilter } from '../components/exercises';
 import { SessionRow, flagText } from '../components/rows';
 import { Chip, Icon, cvar, cx } from '../components/ui';
 import { useUI } from '../components/ui-context';
 import { COURSES, targetOf, useItems, type Item } from '../lib/data';
+import { visibleInWeek } from '../lib/exercises';
 import { isTypingTarget, useMediaQuery, useSwipe, useTitle } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { KIND_LABEL, occurrencesInWeek, type Occurrence } from '../lib/schedule';
@@ -28,7 +30,10 @@ export function WeekPage() {
   const now = useNow();
   const ui = useUI();
   const { synced } = usePersonal();
-  const items = useItems().filter((i) => !i.done && i.due);
+  const all = useItems();
+  // A filter, never a deletion: hiding a type changes nothing about the exercises themselves.
+  const shown = all.filter((i) => !i.done && visibleInWeek(i.kind === 'exercise' ? i.exercise!.role : null, synced.prefs));
+  const items = shown.filter((i) => i.due);
   const narrow = useMediaQuery('(max-width: 639px)');
 
   // On weekends "current" means the coming week
@@ -77,6 +82,10 @@ export function WeekPage() {
         </p>
       )}
 
+      <ExerciseFilter />
+
+      <WeekOnly items={shown} weekStart={weekStart} />
+
       {narrow ? <Agenda days={days} week={week} items={items} now={now} /> : <Timetable days={days} week={week} items={items} now={now} />}
     </div>
   );
@@ -88,11 +97,33 @@ export function exportCalendar(now: Date) {
   toast({ text: 'Kalenderdatei erstellt – öffnen und „Alle hinzufügen“ wählen' }, 5000);
 }
 
+/**
+ * Exercises the course dates by week only (e.g. "Quiz in der Woche vom 09.11."). They get a strip of
+ * their own instead of a made-up day – the source does not name one.
+ */
+function WeekOnly({ items, weekStart }: { items: Item[]; weekStart: Date }) {
+  const list = items.filter((i) => i.exercise?.weekStart && isSameDay(i.exercise.weekStart, weekStart));
+  if (list.length === 0) return null;
+  return (
+    <div className="weekonly">
+      <span className="weekonly__label">Diese Woche</span>
+      {list.map((i) => (
+        <Link key={i.id} className="weekonly__item" to={`/courses/${i.courseId}`} style={cvar(targetOf(i.courseId).color)}>
+          <span className="dot" aria-hidden="true" />
+          <strong>{i.title}</strong> {targetOf(i.courseId).shortName}
+          {i.exercise?.detail && <em>{i.exercise.detail}</em>}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
 function DueLine({ item, compact }: { item: Item; compact?: boolean }) {
   const t = targetOf(item.courseId);
+  const ex = item.exercise;
   return (
-    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo')}>
-      <Icon name={item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
+    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo', ex && 'due-line--exercise', ex?.role === 'bonus' && 'due-line--bonus')}>
+      <Icon name={ex ? (ex.role === 'bonus' ? 'trophy' : 'courses') : item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
       <span>
         {item.title}{!item.allDay && ` · ${fmtTime(item.due!)}`}
         {!compact && <em>{t.shortName}</em>}

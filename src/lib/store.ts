@@ -99,7 +99,7 @@ const updateSynced = (fn: (s: SyncedState) => SyncedState) => commit({ ...state,
 const updateLocal = (patch: Partial<LocalState>) => commit({ ...state, local: { ...state.local, ...patch } }, false);
 const now = () => Date.now();
 
-type RecordKind = 'todos' | 'exams' | 'memos' | 'links' | 'study';
+type RecordKind = 'todos' | 'exams' | 'memos' | 'links' | 'exercises' | 'study';
 
 function put<K extends RecordKind>(kind: K, rec: SyncedState[K][string]) {
   updateSynced((s) => {
@@ -172,6 +172,29 @@ export const actions = {
   /** Check off a Notion task – stored only in this app */
   setTaskDone(taskId: string, done: boolean) {
     updateSynced((s) => ({ ...s, taskDone: { ...s.taskDone, [taskId]: { done, updatedAt: now() } } }));
+  },
+
+  /**
+   * Progress on an official course exercise. The exercise itself comes from the read-only course
+   * data (src/data/exercises.ts) and is never changed here – only this check-off is the user's.
+   */
+  setExerciseDone(id: string, done: boolean) {
+    const cur = state.synced.exercises[id];
+    // Handing something in that was marked correct and is now un-ticked drops the correctness too.
+    put('exercises', { ...cur, id, done, correct: done ? cur?.correct : false, updatedAt: now() });
+  },
+  /** "Korrekt" / "bestanden" – only used by course types that track it (e.g. Analysis, Chemistry-Quiz). */
+  setExerciseCorrect(id: string, correct: boolean) {
+    const cur = state.synced.exercises[id];
+    put('exercises', { ...cur, id, done: correct ? true : cur?.done, correct, updatedAt: now() });
+  },
+  /** A plain counter for things a course has no individual entries for ("10 Serien abgegeben"). */
+  setExerciseCount(tallyId: string, count: number) {
+    put('exercises', { ...state.synced.exercises[tallyId], id: tallyId, count: Math.max(0, Math.round(count)), updatedAt: now() });
+  },
+  /** Which exercise roles the week view shows. null = all. A filter – it never changes exercise data. */
+  setWeekExerciseRoles(roles: string[] | null) {
+    updateSynced((s) => ({ ...s, prefs: { ...s.prefs, weekExerciseRoles: roles, updatedAt: now() } }));
   },
 
   setParity(p: 'odd' | 'even' | null) {

@@ -217,8 +217,39 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
 - Hinweis: Eine noch nicht aktualisierte App-Version kennt `links` nicht und lässt sie beim Hochladen weg; ein
   aktualisiertes Gerät lädt sie beim nächsten Abgleich wieder hoch. Also auf allen Geräten „Aktualisieren“ tippen.
 
+## v8 – Kursübungen und Bonus aus den echten HS26-Quellen (2026-09-23)
+- **Recherche zuerst:** VVZ-Einträge aller sechs Lerneinheiten, die öffentliche Kursseite von Informatik I und
+  die (einzige vollständig öffentliche) Kursseite von Lineare Algebra I. Moodle und Code Expert verlangen ein
+  Login und waren nicht lesbar – das steht so in der App, statt es zu raten. Wortlaut und Quellen:
+  [EXERCISES-HS26.md](EXERCISES-HS26.md).
+- **Fünf Kurse, fünf Systeme.** Genau deshalb gibt es kein gemeinsames „Bonus“-Schema, sondern pro Kurs eigene
+  Typen mit den Begriffen des Kurses (Bonusaufgabe, Lernkontrolle, Quiz, Freiwillige Zwischenprüfung) und
+  eigene, messbare Ziele. Das kursübergreifende `role`-Feld dient nur den Filtern.
+- **Datenmodell:** `data/exercises.ts` (read-only wie der Notion-Snapshot, mit `sources`, `unverified`,
+  `dateNote`) + `SyncedState.exercises` für den Fortschritt (abgehakt, korrekt/bestanden, Zähler). Merge,
+  Löschmarken und Sync wie bei allem anderen; alte Installationen bekommen einfach ein leeres Objekt.
+- **Termine:** `dueAt` nur, wenn eine Quelle es wörtlich nennt; `weekOf`, wenn der Kurs nur eine Woche nennt
+  (Engineering-Design-Quiz) – dafür gibt es im Wochenplan einen eigenen Streifen statt eines erfundenen Tags.
+  Ohne Termin steht `dateNote` („Termin steht in Code Expert“) und der Eintrag zählt **nicht** in die
+  Aufgaben-Zahl: „Bonusaufgabe 7“ ist Struktur, keine Arbeit für heute.
+- **UI:** Kursseite zeigt die Übungen in den Gruppen des Kurses plus eine kompakte Bonuskarte; neue Seite
+  `/bonus` (Taste `B`) beantwortet „Wie komme ich zum Bonus?“ pro Fach mit Fortschritt, Zitat, Quellen und
+  „Nicht verifiziert“; Aufgabenseite filtert zusätzlich nach Art; Wochenplan bekommt „Übungen anzeigen“
+  (Mehrfachauswahl, in den synchronisierten Einstellungen gespeichert – ein Filter, der nie Daten ändert).
+- **Assistent:** Kontext enthält Übungen (Typ, Rolle, Termin, Status, Bonusrelevanz) und pro Fach die Regel mit
+  Fortschritt und den offenen Punkten; neue Aktionen `get_exercises`, `get_bonus`, `complete_exercise`,
+  `set_exercise_counter`, `set_week_exercise_filter` – alles über dieselbe Validierungsschicht wie bisher.
+- Geprüft: 94 Tests (Konfiguration konsistent, Fortschritt je Kurssystem, Filter, Migration, Sync, Suche,
+  AI-Kontext und -Aktionen); im Browser Kursseite, Bonusseite, Aufgaben, Wochenplan inkl. Quizwoche vom
+  09.11., Handy-Breite ohne seitliches Scrollen und ein zweites Gerät, das den Fortschritt übernimmt.
+- Nebenbefund: Die Informatik-Kursseite nennt HG E 7 als Vorlesungsraum (Übertragung HG E 5 / E 3), Notion
+  sagt HG E3. Der Stundenplan bleibt wie in Notion – aber es ist einen Blick wert.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
+- Übungstermine hinter dem Login (Moodle, Code Expert) fehlen. Mit einem angemeldeten Browser liessen sie sich
+  einmalig auslesen und in `data/exercises.ts` ergänzen; automatisch geht es nur mit einem Server, der die
+  Sitzung hält – das wäre ein eigener Schritt.
 - Neue Einträge in Notion (z. B. „Serie 2“) erscheinen erst nach einem Snapshot-Update. Nächster sinnvoller Schritt:
   automatischer, strikt lesender Abgleich per Notion-API (Integration nur mit „Read content“) in der GitHub Action.
 - kvdb.io ist ein kleiner kostenloser Drittanbieter ohne SLA; sollte er dauerhaft ausfallen, bräuchte die App

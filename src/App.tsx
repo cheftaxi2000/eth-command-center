@@ -14,6 +14,7 @@ import { useMediaQuery } from './lib/hooks';
 import { getNow, isSimulatedTime } from './lib/now';
 import { usePersonal } from './lib/store';
 import { fmtDateShort, fmtTime } from './lib/time';
+import { BonusPage } from './pages/Bonus';
 import { CoursePage } from './pages/CoursePage';
 import { CoursesPage } from './pages/Courses';
 import { LinksPage } from './pages/Links';
@@ -80,6 +81,7 @@ export function App() {
             <Route path="/courses/:id" element={<CoursePage />} />
             <Route path="/notes" element={<NotesPage />} />
             <Route path="/notes/:id" element={<NotePage />} />
+            <Route path="/bonus" element={<BonusPage />} />
             <Route path="/links" element={<LinksPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<TodayPage />} />

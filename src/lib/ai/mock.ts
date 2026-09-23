@@ -1,4 +1,5 @@
 import { buildItems } from '../data';
+import { exerciseEntries } from '../exercises';
 import { getNow } from '../now';
 import { getPersonal } from '../store';
 import { DAY_LONG, addDays, daysBetween, startOfDay, toLocalDate } from '../time';
@@ -129,6 +130,16 @@ function findUrl(text: string): string | undefined {
   return m[0].replace(/[.,;:!?)»“"]+$/, '');
 }
 
+/** Official course exercises whose title the sentence names ("hake Bonusaufgabe 1 ab"). */
+function findExercises(text: string, subjectId: string | null) {
+  const t = text.toLowerCase();
+  const all = exerciseEntries().filter((e) => !subjectId || e.courseId === subjectId);
+  const byTitle = all.filter((e) => t.includes(e.exercise.title.toLowerCase()));
+  if (byTitle.length > 0) return byTitle;
+  const rest = fragment(t);
+  return rest.length > 2 ? all.filter((e) => e.exercise.title.toLowerCase().includes(rest)) : [];
+}
+
 /** Which subject the sentence is about, found via the course aliases in data/seed.ts. */
 function detectSubject(text: string): string | null {
   const words = text.toLowerCase().replace(/[.,;:!?]/g, ' ').split(/[\s-]+/);
@@ -178,8 +189,29 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
       : { reply: 'Ich finde keine passende Aufgabe.', calls: [] };
   }
 
+  // --- questions about official exercises ("Welche Bonusaufgaben habe ich noch?") ---
+  if (/\b(serie|serien|bonusaufgabe\w*|bonusübung\w*|quiz|übungen|uebungen|lernkontrolle)\b/.test(t) && /\b(was|welche|wann|offen|noch|zeig|liste)\b/.test(t)) {
+    const role = /bonus/.test(t) ? 'bonus' : /quiz/.test(t) ? 'quiz' : /lernkontrolle|zwischenpr/.test(t) ? 'assessment' : undefined;
+    return {
+      reply: 'Deine Kursübungen:',
+      calls: [{ action: 'get_exercises', params: { status: 'open', ...(subject ? { subject } : {}), ...(role ? { role } : {}) } }],
+    };
+  }
+
+  // --- the bonus RULE itself ("Wie komme ich in Chemie zum Bonus?") ---
+  if (/\bbonus\w*\b|\bnotenbonus\b|\bzwischenpr\w*\b/.test(t) && !/\b(hake?|abhaken|erledigt|fertig|abgegeben)\b/.test(t)) {
+    return { reply: subject ? 'Die Bonusregel:' : 'Die Bonusregeln:', calls: [{ action: 'get_bonus', params: subject ? { subject } : {} }] };
+  }
+
   // --- complete ---
-  if (/\b(abgehakt|erledigt|fertig|abhaken|hab ich gemacht)\b/.test(t) && !/was |welche /.test(t)) {
+  if (/\b(abgehakt|erledigt|fertig|abhaken|hak\w*|hab ich gemacht|abgegeben)\b/.test(t) && !/was |welche /.test(t)) {
+    const ex = findExercises(text, subject)[0];
+    if (ex) {
+      return {
+        reply: `Ich hake „${ex.exercise.title}" ab.`,
+        calls: [{ action: 'complete_exercise', params: { id: ex.exercise.id, ...(/korrekt|bestanden/.test(t) ? { correct: true } : {}) } }],
+      };
+    }
     const hit = findTasks(text, subject)[0];
     return hit
       ? { reply: `„${hit.title}" ist erledigt.`, calls: [{ action: 'complete_task', params: { id: hit.id } }] }
@@ -271,7 +303,7 @@ export function parseIntent(text: string, now: Date = getNow()): MockIntent {
   }
 
   return {
-    reply: 'Das habe ich nicht verstanden. Ich kann Aufgaben, Notizen und Links anlegen, ändern, löschen und deinen Stundenplan vorlesen.',
+    reply: 'Das habe ich nicht verstanden. Ich kann Aufgaben, Notizen und Links anlegen, ändern, löschen, Kursübungen abhaken und deinen Stundenplan vorlesen.',
     calls: [],
   };
 }

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { CourseSwitcher, GroupChoice, LinkButtons, LinkRow, ParityControl, linkKindLabel } from '../components/course';
+import { ExerciseSections } from '../components/exercises';
 import { ItemRow, TodoComposer } from '../components/rows';
 import { neighbourCourse } from '../components/Shortcuts';
 import { toast } from '../components/toast';
@@ -52,7 +53,8 @@ export function CoursePage() {
 
   const mine = items.filter((i) => i.courseId === course.id);
   const doneTodos = todos.filter((i) => i.done && !lingering.has(i.id));
-  const graded = mine.filter((i) => i.kind !== 'todo');
+  // Official exercises have their own section above – here only Notion deadlines and own exams.
+  const graded = mine.filter((i) => i.kind !== 'todo' && i.kind !== 'exercise');
   const next = nextOccurrence(now, [course], synced.prefs);
   const nextDue = mine.find((i) => !i.done && i.due && +i.due >= +now);
   const notes = notesOf(course.id);
@@ -101,8 +103,10 @@ export function CoursePage() {
         </div>
       </dl>
 
+      <ExerciseSections courseId={course.id} />
+
       <section aria-labelledby="h-todos">
-        <SectionHead id="h-todos" title="To-dos" action={openTodos.length > 0 ? <span className="count">{openTodos.length} offen</span> : undefined} />
+        <SectionHead id="h-todos" title="Meine To-dos" action={openTodos.length > 0 ? <span className="count">{openTodos.length} offen</span> : undefined} />
         <div className="panel">
           <TodoComposer fixedCourseId={course.id} />
           {openTodos.length > 0 && <ul className="list list--top">{openTodos.map((i) => <ItemRow key={i.id} item={i} now={now} hideCourse linger={lingering.has(i.id)} />)}</ul>}

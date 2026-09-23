@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { COURSES, useItems } from '../lib/data';
+import { COURSES, openWork, useItems } from '../lib/data';
 import { MOD_KEY } from '../lib/hooks';
 import { useNow } from '../lib/now';
 import { usePersonal } from '../lib/store';
@@ -20,7 +20,9 @@ const MAIN: { to: string; label: string; icon: IconName; end?: boolean; key: str
  * useItems(), so ticking something off updates it in the same render – it can never go stale.
  */
 export function useOpenTaskCount(): number {
-  return useItems().filter((i) => !i.done).length;
+  // Everything open that has a date, plus own undated to-dos. Official exercises whose date the
+  // course has not published yet are structure, not work for today – see openWork().
+  return openWork(useItems()).length;
 }
 
 /** How many personal notes exist – same treatment as the task count. */
@@ -114,6 +116,7 @@ export function SideNav() {
       </div>
 
       <div className="side__foot">
+        <NavLink to="/bonus" className={navClass}><Icon name="trophy" /><span className="nav-item__label">Bonus & Leistung</span><kbd className="kbd-hint kbd-hint--quiet">B</kbd></NavLink>
         <NavLink to="/links" className={navClass}><Icon name="link" /><span className="nav-item__label">Links & Admin</span></NavLink>
         <NavLink to="/settings" className={navClass}><Icon name="settings" /><span className="nav-item__label">Einstellungen</span></NavLink>
         <SyncBadge />

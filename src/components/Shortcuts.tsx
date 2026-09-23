@@ -21,11 +21,11 @@ export function neighbourCourse(id: string, dir: 1 | -1): string {
 
 /**
  * Single-letter jumps, chosen by German initial where the letter was free:
- * Heute, Woche, Aufgaben, Kurse, NotiZen, Links, Einstellungen.
+ * Heute, Woche, Aufgaben, Kurse, NotiZen, Bonus, Links, Einstellungen.
  * All are bare letters – browsers and Windows/macOS only claim combinations with a modifier,
  * so nothing here collides. The one modifier shortcut, Strg/⌘ K, is the established "open search".
  */
-const PAGES: Record<string, string> = { h: '/', w: '/week', a: '/tasks', k: '/courses', z: '/notes', l: '/links', e: '/settings' };
+const PAGES: Record<string, string> = { h: '/', w: '/week', a: '/tasks', k: '/courses', z: '/notes', b: '/bonus', l: '/links', e: '/settings' };
 
 /** Keyboard shortcuts for the laptop (and iPad with keyboard). Never fire while typing. */
 export function useGlobalShortcuts() {
@@ -81,7 +81,7 @@ const GROUPS: { title: string; list: [string, string][] }[] = [
     list: [
       ['H · W · A', 'Heute · Woche · Aufgaben'],
       ['K · Z', 'Kurse · Notizen'],
-      ['L · E', 'Links & Admin · Einstellungen'],
+      ['B · L · E', 'Bonus & Leistung · Links & Admin · Einstellungen'],
       ['1 – 6', 'Kurs direkt öffnen'],
     ],
   },

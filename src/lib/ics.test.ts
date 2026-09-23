@@ -18,7 +18,9 @@ describe('calendar export (.ics)', () => {
     // parity + chosen group honoured: KW 39 has no Monday Analysis lecture, Mechanik exercise only Thursday 08:15
     expect(s.filter((x) => x.startsWith('Analysis I – Vorlesung'))).toHaveLength(2);
     expect(s.filter((x) => x.startsWith('Mechanik I – Übung'))).toHaveLength(1);
-    expect(s.filter((x) => x.startsWith('Abgabe:'))).toHaveLength(4); // the four Notion tasks
+    // four Notion tasks plus the official deadlines that carry a time (Lineare Algebra)
+    expect(s.filter((x) => x.startsWith('Abgabe:'))).toHaveLength(7);
+    expect(s).toContain('Abgabe: Bonusaufgabe 1 (Lin. Algebra I)');
     expect(ics).toContain('TRIGGER:-P1D');
   });
 

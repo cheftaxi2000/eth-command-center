@@ -1,4 +1,6 @@
+import { COURSE_EXERCISES, ROLE_LABEL } from '../../data/exercises';
 import { COURSES, buildItems, targetOf } from '../data';
+import { exerciseEntry } from '../exercises';
 import { normalizeUrl } from '../links';
 import { getNow } from '../now';
 import { GENERAL_ID } from '../state';
@@ -480,6 +482,93 @@ export const ACTIONS: Record<string, ActionDef> = {
       if (!link) return fail('delete_link', `Es gibt keinen eigenen Link mit der Id "${id}". Links aus Notion lassen sich nicht löschen.`);
       store.deleteLink(id);
       return { ok: true, action: 'delete_link', message: `Link „${link.label}" gelöscht.`, data: { id } };
+    },
+  },
+
+  get_exercises: {
+    name: 'get_exercises',
+    description: 'Offizielle Kursübungen lesen (Serien, Bonusaufgaben, Quiz, Zwischenprüfungen), optional nach Fach, Art oder Status.',
+    params: {
+      subject: { type: 'subject', description: 'Fach' },
+      role: { type: 'enum', description: 'Art der Übung', values: ['normal', 'bonus', 'quiz', 'assessment', 'project', 'admin'] },
+      status: { type: 'enum', description: 'open | done | all (Standard: open)', values: ['open', 'done', 'all'] },
+      withinDays: { type: 'integer', description: 'Nur solche, die in so vielen Tagen fällig sind' },
+    },
+    readOnly: true,
+    run: (p) => {
+      let list = buildAIDynamicContext({ maxItems: 200 }).exercises;
+      const status = (p.status as string) ?? 'open';
+      if (status !== 'all') list = list.filter((e) => e.status === status);
+      if (p.subject) list = list.filter((e) => e.subjectId === p.subject);
+      if (p.role) list = list.filter((e) => e.role === p.role);
+      if (typeof p.withinDays === 'number') list = list.filter((e) => e.daysLeft !== null && e.daysLeft <= (p.withinDays as number));
+      return { ok: true, action: 'get_exercises', message: `${list.length} Übungen gefunden.`, data: list };
+    },
+  },
+
+  get_bonus: {
+    name: 'get_bonus',
+    description: 'Die Bonus- bzw. Leistungsregel eines Fachs samt Fortschritt und dem, was nicht öffentlich bekannt ist.',
+    params: { subject: { type: 'subject', description: 'Fach; ohne Angabe alle' } },
+    readOnly: true,
+    run: (p) => {
+      let list = buildAIDynamicContext({ maxItems: 200 }).bonus;
+      if (p.subject) list = list.filter((b) => b.subjectId === p.subject);
+      return { ok: true, action: 'get_bonus', message: `Bonusregeln für ${list.length} Fächer.`, data: list };
+    },
+  },
+
+  complete_exercise: {
+    name: 'complete_exercise',
+    description: 'Eine offizielle Kursübung abhaken (abgegeben). Mit "correct" zusätzlich als korrekt bzw. bestanden markieren.',
+    params: {
+      id: { type: 'id', description: 'Id der Übung aus dem Kontext', required: true },
+      done: { type: 'boolean', description: 'false setzt sie wieder auf offen (Standard: true)' },
+      correct: { type: 'boolean', description: 'Korrekt bzw. bestanden' },
+    },
+    run: (p) => {
+      const id = p.id as string;
+      const entry = exerciseEntry(id);
+      if (!entry) return fail('complete_exercise', `Es gibt keine Kursübung mit der Id "${id}".`);
+      const done = typeof p.done === 'boolean' ? p.done : true;
+      store.setExerciseDone(id, done);
+      if (typeof p.correct === 'boolean') store.setExerciseCorrect(id, p.correct);
+      const what = !done ? 'wieder offen' : typeof p.correct === 'boolean' ? (p.correct ? 'erledigt und korrekt' : 'erledigt, nicht korrekt') : 'erledigt';
+      return { ok: true, action: 'complete_exercise', message: `„${entry.exercise.title}" (${subjectName(entry.courseId)}) ist ${what}.`, data: { id } };
+    },
+  },
+
+  set_exercise_counter: {
+    name: 'set_exercise_counter',
+    description: 'Einen Zähler setzen, den ein Kurs statt einzelner Einträge führt (z. B. abgegebene Chemie-Serien). Die Id steht im Kontext bei der Bonusregel.',
+    params: {
+      counter: { type: 'id', description: 'Id des Zählers, z. B. "chemistry:series"', required: true },
+      count: { type: 'integer', description: 'Neuer Stand', required: true },
+    },
+    run: (p) => {
+      const counter = p.counter as string;
+      const known = Object.values(COURSE_EXERCISES).flatMap((c) => c.bonus.goals.map((g) => g.tallyId)).filter(Boolean) as string[];
+      if (!known.includes(counter)) return fail('set_exercise_counter', `Unbekannter Zähler "${counter}". Möglich: ${known.join(', ')}.`);
+      store.setExerciseCount(counter, p.count as number);
+      return { ok: true, action: 'set_exercise_counter', message: `Zähler auf ${p.count as number} gesetzt.`, data: { counter } };
+    },
+  },
+
+  set_week_exercise_filter: {
+    name: 'set_week_exercise_filter',
+    description: 'Welche Übungsarten der Wochenplan zeigt. "alle" zeigt wieder alles. Das ist nur ein Filter – es löscht nichts.',
+    params: { types: { type: 'string', description: 'Komma-Liste aus normal, bonus, quiz, assessment, project, admin – oder "alle"', required: true } },
+    run: (p) => {
+      const raw = String(p.types).toLowerCase();
+      if (raw.trim() === 'alle' || raw.trim() === 'all') {
+        store.setWeekExerciseRoles(null);
+        return { ok: true, action: 'set_week_exercise_filter', message: 'Der Wochenplan zeigt wieder alle Übungsarten.' };
+      }
+      const wanted = raw.split(/[,;]/).map((x) => x.trim()).filter(Boolean);
+      const unknown = wanted.filter((w) => !(w in ROLE_LABEL));
+      if (unknown.length > 0) return fail('set_week_exercise_filter', `Unbekannte Art: ${unknown.join(', ')}.`);
+      store.setWeekExerciseRoles(wanted);
+      return { ok: true, action: 'set_week_exercise_filter', message: `Der Wochenplan zeigt jetzt: ${wanted.map((w) => ROLE_LABEL[w]).join(', ')}.` };
     },
   },
 

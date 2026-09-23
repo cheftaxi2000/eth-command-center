@@ -51,31 +51,45 @@ export function SessionRow({ occ, now, focus, showDay }: { occ: Occurrence; now:
 }
 
 function toggleItem(item: Item, done: boolean) {
-  const set = (v: boolean) => (item.kind === 'notion' ? actions.setTaskDone(item.id, v) : actions.setTodoDone(item.id, v));
+  const set = (v: boolean) =>
+    item.kind === 'notion' ? actions.setTaskDone(item.id, v)
+      : item.kind === 'exercise' ? actions.setExerciseDone(item.id, v)
+      : actions.setTodoDone(item.id, v);
   set(done);
   if (done) toast({ text: `Erledigt: ${item.title}`, action: { label: 'Rückgängig', run: () => set(false) } }, 3500);
 }
 
-/** Notion task, own to-do or exam – one consistent row */
-export function ItemRow({ item, now, hideCourse, linger }: { item: Item; now: Date; hideCourse?: boolean; linger?: boolean }) {
+/** "korrekt" for a written exercise, "bestanden" for something you sit through */
+const correctWord = (role: string) => (role === 'quiz' || role === 'assessment' ? 'bestanden' : 'korrekt');
+
+/** Notion task, own to-do, exam or official course exercise – one consistent row */
+export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Item; now: Date; hideCourse?: boolean; linger?: boolean; detailed?: boolean }) {
   const ui = useUI();
   const target = targetOf(item.courseId);
   const info = item.due ? dueInfo(item.due, now, item.allDay) : null;
-  const editable = item.kind !== 'notion';
+  const ex = item.exercise;
+  // Official exercises come from the course, like Notion tasks: tick them off, but never edit them here.
+  const editable = item.kind !== 'notion' && item.kind !== 'exercise';
 
   const body = (
     <>
       <span className="row__title">
         <span className="item__text">{item.title}</span>
         {item.kind === 'exam' && <Chip tone="accent">Prüfung</Chip>}
+        {ex && <Chip tone={ex.role === 'bonus' ? 'accent' : undefined}>{ex.typeShort}</Chip>}
+        {ex?.compulsory && <Chip tone="warn">Pflicht</Chip>}
         {item.inProgress && <Chip>In Arbeit</Chip>}
       </span>
-      {(!hideCourse || item.location) && (
+      {(!hideCourse || item.location || ex) && (
         <span className="row__meta">
           {!hideCourse && (
             <span className="meta-course"><CourseDot color={target.color} />{target.shortName}</span>
           )}
           {item.location && <span>{item.location}</span>}
+          {ex?.weekStart && <span>Woche vom {fmtDateShort(ex.weekStart)}</span>}
+          {ex && !item.due && !ex.weekStart && ex.dateNote && <span>{ex.dateNote}</span>}
+          {detailed && ex?.detail && <span className="muted-tag">{ex.detail}</span>}
+          {detailed && ex?.where && !ex.detail && <span className="muted-tag">{ex.where}</span>}
         </span>
       )}
     </>
@@ -93,8 +107,21 @@ export function ItemRow({ item, now, hideCourse, linger }: { item: Item; now: Da
           onClick={() => ui.openEditor({ mode: 'edit', kind: item.kind === 'exam' ? 'exam' : 'todo', id: item.id })}>
           {body}
         </button>
+      ) : ex ? (
+        ex.url ? (
+          <a className="item__body" href={ex.url} target="_blank" rel="noopener noreferrer" title={`${ex.typeLabel} öffnen`}>{body}</a>
+        ) : (
+          <div className="item__body" title={`${ex.typeLabel}${ex.where ? ` · ${ex.where}` : ''} – offizielle Kursangabe, hier nur abhakbar.`}>{body}</div>
+        )
       ) : (
         <div className="item__body" title="Aus Notion – dort bearbeiten. Abhaken gilt nur in dieser App.">{body}</div>
+      )}
+      {ex?.tracksCorrect && (item.done || ex.correct) && (
+        <button type="button" className={cx('mini-toggle', ex.correct && 'is-on')}
+          aria-pressed={ex.correct}
+          onClick={() => actions.setExerciseCorrect(item.id, !ex.correct)}>
+          <Icon name="check" size={14} />{correctWord(ex.role)}
+        </button>
       )}
       {info && (
         <div className={cx('row__due', !item.done && `tone-${info.tone}`)}>

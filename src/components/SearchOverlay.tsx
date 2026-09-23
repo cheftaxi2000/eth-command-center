@@ -8,7 +8,7 @@ import { CourseDot, Icon, cx, type IconName } from './ui';
 import { useUI } from './ui-context';
 
 const TYPE_ICON: Record<SearchType, IconName> = {
-  course: 'courses', todo: 'tasks', deadline: 'flag', exam: 'flag', session: 'week', note: 'note',
+  course: 'courses', todo: 'tasks', deadline: 'flag', exam: 'flag', exercise: 'trophy', session: 'week', note: 'note',
   memo: 'note', topic: 'note', instructor: 'person', link: 'external', action: 'plus',
 };
 

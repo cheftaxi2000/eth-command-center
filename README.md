@@ -9,13 +9,38 @@ Beim Öffnen beantwortet sie **„Was muss ich gerade wissen?“** – nicht „
 - **Woche** – Stundenplan als klares Raster: ein Rechteck pro Termin, Fachfarbe fürs Fach, Schraffur + Label für Übung vs. Vorlesung; offene Abgaben/Serien stehen direkt an der passenden Übung; wischen oder ← → für andere Wochen
 - **Kurse** – je Kurs: Links (Moodle, CodeExpert …), nächster Termin, To-dos, Abgaben & Prüfungen, Zeiten & Räume, Notion-Notizen, eigene Notizen
 - **Eigene Links** – „+ Link“ bei *Ressourcen*, unter dem Kurstitel oder auf *Links & Admin* (Taste `R`): Adresse einfügen, fertig. `https://` und Name ergänzt die App selbst (Moodle, Aufzeichnungen, PDF-Name …); Stift daneben zum Ändern/Löschen; synchronisiert wie alles andere
-- **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene (nicht nur die nächsten 7 Tage) und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
+- **Kursübungen** – die echten Serien, Bonusaufgaben, Quiz und Zwischenprüfungen des HS 26 pro Kurs, abhakbar (und „korrekt“/„bestanden“ separat), mit Termin, wo es einen gibt
+- **Bonus & Leistung** (`B`) – eine Seite, die pro Fach beantwortet: Gibt es einen Bonus? Wie viel? Was genau zählt? Wie weit bin ich? – mit dem Wortlaut der Quelle und dem, was nicht öffentlich ist
+- **Zähler** – die Zahl an „Aufgaben“ ist *alles* Offene mit Termin plus eigene To-dos ohne Termin und aktualisiert sich beim Abhaken sofort; „Notizen“ zählt analog
 - **Suche** (Strg/⌘ K, `/` oder Tab „Suche“) über Kurse, To-dos, eigene Notizen, Termine & Räume, Abgaben, Notion-Notizen, Dozenten, Links – und „… als To-do speichern“
-- **Assistent** – Vollbild-Chat (`C`), versteht Sätze wie „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2“, antwortet aus deinen echten Daten, **Mikrofon** zum Diktieren (siehe unten)
+- **Assistent** – Vollbild-Chat (`C`), versteht Sätze wie „Mach mir eine Aufgabe für Analysis bis Freitag: Serie 2“ oder „Welche Bonusaufgaben habe ich noch?“, antwortet aus deinen echten Daten, **Mikrofon** zum Diktieren (siehe unten)
 - **Lernzeit** – Fokus-Timer 25/50 min pro Fach (Kursseite, „Heute“, Taste `T` oder per Assistent), Wochenbilanz pro Fach auf „Heute“
 - **Kalender-Export** – Stundenplan der nächsten 8 Wochen + alle offenen Abgaben als .ics, mit Erinnerungen am Vortag (Wochenplan → „In Kalender“)
-- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `R` Link, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
+- **Tastatur** – `H W A K Z L E` öffnen Heute/Woche/Aufgaben/Kurse/Notizen/Links/Einstellungen, `B` Bonus & Leistung, `1`–`6` die Kurse, `N` To-do, `M` Notiz, `R` Link, `P` Prüfung, `C` Assistent, `T` Lernblock, `S` synchronisieren, `?` zeigt alles
 - **Sync** – läuft automatisch im Hintergrund über alle Browser und Geräte, ganz ohne Login oder Token (siehe unten)
+
+## Übungen & Bonus im HS 26
+
+Die offiziellen Übungen und Bonusregeln der fünf Kurse stehen in [`src/data/exercises.ts`](src/data/exercises.ts) –
+read-only wie der Notion-Snapshot. Du hakst sie ab, die Definition selbst bleibt unverändert.
+
+Jeder Kurs hat sein **eigenes** System, deshalb hat jeder Kurs seine eigenen Typen, Begriffe und Ziele:
+
+| Fach | Was zählt | Maximum |
+| --- | --- | --- |
+| Analysis I | 9 von 12 Bonusaufgaben korrekt **und** rechtzeitig | 0.25 Notenpunkte |
+| Lineare Algebra I | 5 Bonusaufgaben + Lernkontrolle, je 1 Punkt | min(0.25, 0.25·P/9) |
+| Chemistry | 2 von 3 Quiz bestanden **und** 10 Serien abgegeben | 0.25 Notenpunkte |
+| Informatik I | 3 Bonusübungen, vorher mit XP freischalten | 0.25 Notenpunkte |
+| Mechanik I | kein Übungsbonus – 2 freiwillige Zwischenprüfungen zählen 30 %, wenn sie helfen | – |
+| Engineering Design | kein Bonus – die 2 Quiz *sind* die Note (benotete Semesterleistung) | – |
+
+**Es wird kein Termin erfunden.** In der App steht ein Datum nur, wenn eine Quelle es wörtlich nennt; sonst
+steht dort, wo es zu finden ist (Moodle, Code Expert) – und die Bonusseite listet unter „Nicht verifiziert“
+auf, was hinter einem Login liegt. Wortlaut, Quellen und Erhebungsdatum: [docs/EXERCISES-HS26.md](docs/EXERCISES-HS26.md).
+
+Neue Termine trägst du nach, indem du sie in `src/data/exercises.ts` ergänzt (`dueAt` bzw. `weekOf`, plus
+Quelle) – oder einfach als eigenes To-do erfasst.
 
 ## Notion bleibt unverändert (read-only)
 
@@ -132,6 +157,8 @@ src/
   lib/voice.ts        Diktieren (Web Speech API, sonst Aufnahme → WAV → Gemini)
   lib/markdown.ts     sicherer Markdown-Parser für Antworten (kein innerHTML)
   lib/links.ts        eigene Links: Adresse prüfen (nur http/s), Namen vorschlagen
+  data/exercises.ts   offizielle Kursübungen + Bonusregeln HS 26 (read-only, mit Quellen)
+  lib/exercises.ts    Übungen + eigener Fortschritt, Bonus-Ziele, Wochenfilter
   lib/timer.ts        Lern-Timer und Wochenbilanz
   lib/ics.ts          Kalender-Export mit Erinnerungen
   lib/schedule.ts     Termine je Tag/Woche, laufend/als Nächstes, Fach-Vorschlag
