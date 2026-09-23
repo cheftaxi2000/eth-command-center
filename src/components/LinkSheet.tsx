@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { seed } from '../data/seed';
 import { TARGETS, courseById, targetOf } from '../lib/data';
+import { exerciseEntry } from '../lib/exercises';
 import { normalizeUrl, splitPasted, suggestLabel } from '../lib/links';
 import { GENERAL_ID } from '../lib/state';
 import { actions, getPersonal } from '../lib/store';
@@ -25,11 +26,19 @@ export function LinkSheet() {
   const [error, setError] = useState('');
 
   const editing = linkEditor?.mode === 'edit' ? linkEditor : null;
+  // Attaching a link to an official exercise: only the address, the exercise already has a name
+  const forExercise = linkEditor?.mode === 'exercise' ? exerciseEntry(linkEditor.id) : null;
 
   useEffect(() => {
     if (!linkEditor) return;
     setError('');
-    if (linkEditor.mode === 'new') {
+    if (linkEditor.mode === 'exercise') {
+      const entry = exerciseEntry(linkEditor.id);
+      if (!entry) return closeLinkEditor();
+      setUrl(getPersonal().synced.exercises[linkEditor.id]?.url ?? '');
+      setLabel('');
+      setCourseId(entry.courseId);
+    } else if (linkEditor.mode === 'new') {
       setUrl('');
       setLabel('');
       setCourseId(linkEditor.courseId ?? GENERAL_ID);
@@ -63,6 +72,12 @@ export function LinkSheet() {
       setError(url.trim() ? 'Das ist keine Web-Adresse – zum Beispiel moodle-app2.let.ethz.ch/course/view.php?id=…' : 'Adresse eingeben oder einfügen.');
       return;
     }
+    if (forExercise) {
+      actions.setExerciseUrl(forExercise.exercise.id, address);
+      toast({ text: `Link gespeichert · ${forExercise.exercise.title}` }, 2500);
+      closeLinkEditor();
+      return;
+    }
     const twin = sameAddress(courseId, address, editing?.id);
     if (twin) {
       setError(`Diese Adresse gibt es bei ${targetOf(courseId).shortName} schon: „${twin}“.`);
@@ -78,6 +93,12 @@ export function LinkSheet() {
   };
 
   const remove = () => {
+    if (forExercise) {
+      actions.setExerciseUrl(forExercise.exercise.id, null);
+      toast({ text: 'Link entfernt' }, 2500);
+      closeLinkEditor();
+      return;
+    }
     if (!editing) return;
     const removed = actions.deleteLink(editing.id);
     if (removed) toast({ text: 'Link gelöscht', action: { label: 'Rückgängig', run: () => actions.restoreLink(removed) } });
@@ -85,7 +106,7 @@ export function LinkSheet() {
   };
 
   return (
-    <Sheet open onClose={closeLinkEditor} title={editing ? 'Link bearbeiten' : 'Neuer Link'}>
+    <Sheet open onClose={closeLinkEditor} title={forExercise ? `Link zu „${forExercise.exercise.title}"` : editing ? 'Link bearbeiten' : 'Neuer Link'}>
       <form className="form" onSubmit={submit} noValidate>
         <label className="field">
           <span>Adresse</span>
@@ -95,12 +116,19 @@ export function LinkSheet() {
           {error && <span id="link-error" className="field__error" role="alert">{error}</span>}
         </label>
 
-        <label className="field">
+        {forExercise && (
+          <p className="hint">
+            {targetOf(forExercise.courseId).shortName} · {forExercise.type.label}
+            {forExercise.type.where ? ` · ${forExercise.type.where}` : ''}
+          </p>
+        )}
+
+        <label className={cx('field', forExercise && 'is-hidden')} hidden={!!forExercise}>
           <span>Name <em className="field__opt">optional</em></span>
           <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={suggestion || 'z. B. Skript oder Übungsblätter'} enterKeyHint="done" />
         </label>
 
-        <div className="field">
+        <div className="field" hidden={!!forExercise}>
           <span>Fach</span>
           <div className="pickchips" role="radiogroup" aria-label="Fach">
             {TARGETS.map((t) => (
@@ -113,7 +141,7 @@ export function LinkSheet() {
         </div>
 
         <div className="form__actions">
-          {editing && (
+          {(editing || (forExercise && getPersonal().synced.exercises[forExercise.exercise.id]?.url)) && (
             <button type="button" className="btn btn--quiet-danger" onClick={remove}><Icon name="trash" size={18} />Löschen</button>
           )}
           <span className="spacer" />

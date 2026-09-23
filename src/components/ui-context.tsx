@@ -8,8 +8,11 @@ export type EditorRequest =
 /** What the note sheet should show */
 export type MemoRequest = { mode: 'new'; courseId?: string } | { mode: 'edit'; id: string };
 
-/** What the link sheet should show */
-export type LinkRequest = { mode: 'new'; courseId?: string } | { mode: 'edit'; id: string };
+/** What the link sheet should show. 'exercise' attaches a link to an official course exercise. */
+export type LinkRequest =
+  | { mode: 'new'; courseId?: string }
+  | { mode: 'edit'; id: string }
+  | { mode: 'exercise'; id: string };
 
 interface UI {
   searchOpen: boolean;

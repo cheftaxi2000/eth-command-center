@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
 import { targetOf, useItems, type Item } from '../lib/data';
-import { bonusFromFormula, configOf, goalProgress, roleLabel, rolesInUse, tallyValue, type GoalProgress } from '../lib/exercises';
+import { bonusFromFormula, configOf, goalProgress, isKeyRole, roleLabel, rolesInUse, tallyValue, type GoalProgress } from '../lib/exercises';
 import { useNow } from '../lib/now';
 import { actions, usePersonal } from '../lib/store';
 import type { CourseExercises, SourceRef } from '../types';
@@ -97,7 +97,7 @@ export function ExerciseFilter() {
       <div className="filters" role="group" aria-label="Übungsarten im Wochenplan">
         <button type="button" className={cx('filter', !picked && 'is-on')} aria-pressed={!picked} onClick={() => actions.setWeekExerciseRoles(null)}>Alle</button>
         {roles.map((r) => (
-          <button key={r} type="button" className={cx('filter', isOn(r) && 'is-on')} aria-pressed={isOn(r)} onClick={() => toggle(r)}>
+          <button key={r} type="button" className={cx('filter', isOn(r) && 'is-on', isKeyRole(r) && 'filter--key')} aria-pressed={isOn(r)} onClick={() => toggle(r)}>
             {roleLabel(r)}
           </button>
         ))}
@@ -186,9 +186,11 @@ export function ExerciseSections({ courseId }: { courseId: string }) {
   const cfg = configOf(courseId);
   if (!cfg) return null;
   const mine = items.filter((i) => i.kind === 'exercise' && i.courseId === courseId);
+  // Bonus, Quiz and midterms first – they decide the grade; series and organisation follow
   const groups = cfg.types
     .map((t) => ({ type: t, list: mine.filter((i) => i.exercise!.typeId === t.id) }))
-    .filter((g) => g.list.length > 0);
+    .filter((g) => g.list.length > 0)
+    .sort((a, b) => Number(isKeyRole(b.type.role)) - Number(isKeyRole(a.type.role)));
   if (groups.length === 0) return null;
 
   return (
@@ -199,9 +201,9 @@ export function ExerciseSections({ courseId }: { courseId: string }) {
       {groups.map(({ type, list }) => {
         const open = list.filter((i) => !i.done).length;
         return (
-          <div key={type.id} className="exgroup">
+          <div key={type.id} className={cx('exgroup', isKeyRole(type.role) && 'exgroup--key')}>
             <h3 className="todo-group__head">
-              <span className="todo-group__name">{type.label}</span>
+              <span className="todo-group__name">{type.label}{isKeyRole(type.role) && <Chip tone="danger">zählt für die Note</Chip>}</span>
               <span className="count">{open > 0 ? `${open} offen` : 'alles abgehakt'}</span>
             </h3>
             {type.note && <p className="hint">{type.note}</p>}

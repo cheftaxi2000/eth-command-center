@@ -245,6 +245,21 @@ bilden datierte To-dos und `create_exam` das ab, und `constraints` im Context sa
 - Nebenbefund: Die Informatik-Kursseite nennt HG E 7 als Vorlesungsraum (Übertragung HG E 5 / E 3), Notion
   sagt HG E3. Der Stundenplan bleibt wie in Notion – aber es ist einen Blick wert.
 
+## v9 – Bonus/Quiz farblich hervorgehoben, eigene Links an Übungen, To-dos direkt löschbar (2026-09-23)
+- **Feedback:** „nur relevant sind die Quizes / Bonusaufgaben in rot" – Rollen, die die Note bewegen (Bonus,
+  Quiz, Zwischenprüfung: `isKeyRole()` in `lib/exercises.ts`), stechen jetzt konsequent rot heraus: Chip,
+  linker Rand der Zeile, Wochenplan-Zeile und -Block, der Filter-Knopf selbst. Serien und Organisatorisches
+  bleiben bewusst neutral. Auf der Kursseite stehen die roten Gruppen zuerst.
+- **„Ich muss einen Link hinzufügen können, wenn ich möchte":** jede offizielle Übung bekommt ein eigenes
+  Link-Symbol (`LinkSheet` im neuen Modus `'exercise'`) – dieselbe Adressprüfung wie bei den Ressourcen-Links
+  (nur http/s), aber ohne eigenen Namen: der Übungstitel steht schon fest. Eigener Link ersetzt den
+  Kurs-Link nur in der Anzeige; die offizielle Definition bleibt unverändert. Gespeichert in
+  `SyncedState.exercises[id].url`, synchronisiert wie der Rest.
+- **„Ich soll die To-dos löschen können":** Papierkorb-Symbol direkt an der Zeile (eigene To-dos und eigene
+  Prüfungen), kein Umweg mehr über das Bearbeiten-Sheet nötig – mit Toast und „Rückgängig". Nutzt dieselben
+  `deleteTodo`/`deleteExam`-Aktionen wie bisher, also keine neue Lösch-Logik.
+- Geprüft: 95 Tests; im Browser To-do anlegen → direkt löschen → Rückgängig, gegen den Wegwerf-Speicher.
+
 ## Offene Punkte
 - Auf einem echten iPad noch nicht getestet (nur Chrome/Puppeteer + Browser-Vorschau).
 - Übungstermine hinter dem Login (Moodle, Code Expert) fehlen. Mit einem angemeldeten Browser liessen sie sich

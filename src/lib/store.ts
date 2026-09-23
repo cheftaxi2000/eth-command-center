@@ -188,6 +188,24 @@ export const actions = {
     const cur = state.synced.exercises[id];
     put('exercises', { ...cur, id, done: correct ? true : cur?.done, correct, updatedAt: now() });
   },
+  /**
+   * An own link for an official exercise – the course's own definition stays untouched, this is just
+   * where the student keeps the sheet or the submission page. null removes it again.
+   */
+  setExerciseUrl(id: string, url: string | null): boolean {
+    const cur = state.synced.exercises[id];
+    if (url === null) {
+      const next = { ...cur, id, updatedAt: now() };
+      delete next.url;
+      put('exercises', next);
+      return true;
+    }
+    const clean = normalizeUrl(url);
+    if (!clean) return false;
+    put('exercises', { ...cur, id, url: clean, updatedAt: now() });
+    return true;
+  },
+
   /** A plain counter for things a course has no individual entries for ("10 Serien abgegeben"). */
   setExerciseCount(tallyId: string, count: number) {
     put('exercises', { ...state.synced.exercises[tallyId], id: tallyId, count: Math.max(0, Math.round(count)), updatedAt: now() });

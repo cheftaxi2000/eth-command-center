@@ -3,7 +3,7 @@ import { COURSE_EXERCISES } from '../data/exercises';
 import { seed } from '../data/seed';
 import { buildItems, openWork, undatedExercises } from './data';
 import {
-  bonusFromFormula, exerciseEntries, exerciseEntry, goalProgress, matchesTypeFilter, rolesInUse, visibleInWeek,
+  bonusFromFormula, exerciseEntries, exerciseEntry, goalProgress, isKeyRole, matchesTypeFilter, rolesInUse, visibleInWeek,
 } from './exercises';
 import { createSearch } from './search';
 import { canonical, emptySynced, mergeSynced, normalizeSynced } from './state';
@@ -47,7 +47,9 @@ describe('the course configuration itself', () => {
     // and the wording each course uses stays the course's own
     expect(COURSE_EXERCISES['mechanik-1'].types[0].label).toBe('Freiwillige Zwischenprüfung');
     expect(COURSE_EXERCISES['lineare-algebra-1'].types.map((t) => t.label)).toContain('Lernkontrolle');
-    expect(rolesInUse()).toEqual(['normal', 'bonus', 'quiz', 'assessment', 'admin']);
+    // what decides the grade comes first – bonus, quiz, midterm – then the weekly work
+    expect(rolesInUse()).toEqual(['bonus', 'quiz', 'assessment', 'normal', 'admin']);
+    expect(rolesInUse().filter(isKeyRole)).toEqual(['bonus', 'quiz', 'assessment']);
   });
 
   it('carries only dates that a source really states', () => {
@@ -176,6 +178,28 @@ describe('storing the progress', () => {
 
     // …and malformed entries from the public store are dropped
     expect(normalizeSynced({ exercises: { ok: { id: 'ok', updatedAt: 1 }, bad: { done: true } } }).exercises).toEqual({ ok: { id: 'ok', updatedAt: 1 } });
+  });
+
+  it('takes an own link per exercise – http(s) only, and removable again', () => {
+    const id = 'analysis-1:bonus-3';
+    expect(actions.setExerciseUrl(id, 'moodle-app2.let.ethz.ch/mod/assign/view.php?id=7')).toBe(true);
+    const url = 'https://moodle-app2.let.ethz.ch/mod/assign/view.php?id=7';
+    expect(getPersonal().synced.exercises[id].url).toBe(url);
+
+    // the same rule as everywhere else: nothing but http(s) is stored
+    expect(actions.setExerciseUrl(id, 'javascript:alert(1)')).toBe(false);
+    expect(getPersonal().synced.exercises[id].url).toBe(url);
+    expect(normalizeSynced({ exercises: { x: { id: 'x', url: 'javascript:alert(1)', updatedAt: 1 } } }).exercises).toEqual({});
+
+    const item = buildItems(getPersonal().synced, now).find((i) => i.id === id)!;
+    expect(item.exercise).toMatchObject({ url, ownUrl: url, key: true });
+    // an ordinary series is not marked as grade-relevant, and keeps the course's own link
+    const serie = buildItems(getPersonal().synced, now).find((i) => i.id === 'lineare-algebra-1:serie-1')!;
+    expect(serie.exercise).toMatchObject({ key: false, ownUrl: undefined });
+    expect(serie.exercise!.url).toContain('ex01.pdf');
+
+    actions.setExerciseUrl(id, null);
+    expect(getPersonal().synced.exercises[id].url).toBeUndefined();
   });
 
   it('remembers the week filter in the synced preferences', () => {

@@ -27,6 +27,8 @@ export interface ExerciseStatus {
   done: boolean;
   /** Only meaningful for types with `tracksCorrect` */
   correct: boolean;
+  /** A link the student added for this exercise */
+  url?: string;
 }
 
 export interface GoalProgress {
@@ -66,8 +68,14 @@ export const exerciseEntries = (courseId?: string): ExerciseEntry[] =>
 
 export const exerciseEntry = (id: string): ExerciseEntry | undefined => ENTRIES.find((e) => e.exercise.id === id);
 
-/** The roles that actually occur in the configured courses, in a stable display order. */
-const ROLE_ORDER: ExerciseRole[] = ['normal', 'bonus', 'quiz', 'assessment', 'project', 'admin'];
+/**
+ * Display order across the app: what decides the grade first (bonus tasks, quizzes, midterms), then
+ * the ordinary weekly work, then organisational dates.
+ */
+const ROLE_ORDER: ExerciseRole[] = ['bonus', 'quiz', 'assessment', 'normal', 'project', 'admin'];
+
+/** Bonus tasks, quizzes and midterms – the ones that move the grade. Shown in red. */
+export const isKeyRole = (role: ExerciseRole): boolean => role === 'bonus' || role === 'quiz' || role === 'assessment';
 export const rolesInUse = (): ExerciseRole[] => ROLE_ORDER.filter((r) => ENTRIES.some((e) => e.type.role === r));
 
 /**
@@ -89,7 +97,7 @@ export const visibleInWeek = (role: ExerciseRole | null, prefs: { weekExerciseRo
 
 export function exerciseStatus(synced: SyncedState, id: string): ExerciseStatus {
   const s = synced.exercises[id];
-  return { done: !!s?.done, correct: !!s?.correct };
+  return { done: !!s?.done, correct: !!s?.correct, ...(s?.url ? { url: s.url } : {}) };
 }
 
 /** Value of a manual counter ("10 Serien abgegeben") – stored like an exercise, with a count. */

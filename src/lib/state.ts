@@ -69,6 +69,8 @@ export interface StudySession {
 export interface ExerciseState {
   id: string;
   done?: boolean;
+  /** A link the student added themselves for this exercise (the sheet, the submission page …) */
+  url?: string;
   /** Correct / passed, for the types where the course tracks that separately */
   correct?: boolean;
   /** For manual counters */
@@ -198,7 +200,8 @@ export function normalizeSynced(raw: unknown): SyncedState {
     memos: pick<Memo>(raw.memos, (m) => typeof m.id === 'string' && typeof m.body === 'string' && typeof m.updatedAt === 'number'),
     // Anyone who knows the shared code can write to the store: only http(s) addresses get through.
     links: pick<OwnLink>(raw.links, (l) => typeof l.id === 'string' && typeof l.courseId === 'string' && typeof l.label === 'string' && typeof l.url === 'string' && isWebUrl(l.url) && typeof l.createdAt === 'number' && typeof l.updatedAt === 'number'),
-    exercises: pick<ExerciseState>(raw.exercises, (e) => typeof e.id === 'string' && typeof e.updatedAt === 'number'),
+    // Only http(s) survives here too – the sync store is publicly writable (see lib/links.ts)
+    exercises: pick<ExerciseState>(raw.exercises, (e) => typeof e.id === 'string' && typeof e.updatedAt === 'number' && (e.url === undefined || (typeof e.url === 'string' && isWebUrl(e.url)))),
     study: pick<StudySession>(raw.study, (x) => typeof x.id === 'string' && typeof x.courseId === 'string' && typeof x.start === 'number' && typeof x.minutes === 'number' && x.minutes > 0 && typeof x.updatedAt === 'number'),
     taskDone: pick<Override>(raw.taskDone, (o) => typeof o.done === 'boolean' && typeof o.updatedAt === 'number'),
     prefs: {

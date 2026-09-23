@@ -108,7 +108,7 @@ function WeekOnly({ items, weekStart }: { items: Item[]; weekStart: Date }) {
     <div className="weekonly">
       <span className="weekonly__label">Diese Woche</span>
       {list.map((i) => (
-        <Link key={i.id} className="weekonly__item" to={`/courses/${i.courseId}`} style={cvar(targetOf(i.courseId).color)}>
+        <Link key={i.id} className={cx('weekonly__item', i.exercise?.key && 'weekonly__item--key')} to={`/courses/${i.courseId}`} style={cvar(targetOf(i.courseId).color)}>
           <span className="dot" aria-hidden="true" />
           <strong>{i.title}</strong> {targetOf(i.courseId).shortName}
           {i.exercise?.detail && <em>{i.exercise.detail}</em>}
@@ -122,8 +122,8 @@ function DueLine({ item, compact }: { item: Item; compact?: boolean }) {
   const t = targetOf(item.courseId);
   const ex = item.exercise;
   return (
-    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo', ex && 'due-line--exercise', ex?.role === 'bonus' && 'due-line--bonus')}>
-      <Icon name={ex ? (ex.role === 'bonus' ? 'trophy' : 'courses') : item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
+    <span className={cx('due-line', item.kind === 'todo' && 'due-line--todo', ex && 'due-line--exercise', ex?.key && 'due-line--key')}>
+      <Icon name={ex ? (ex.key ? 'trophy' : 'courses') : item.kind === 'todo' ? 'tasks' : 'flag'} size={13} />
       <span>
         {item.title}{!item.allDay && ` · ${fmtTime(item.due!)}`}
         {!compact && <em>{t.shortName}</em>}
@@ -205,7 +205,7 @@ function Timetable({ days, week, items, now }: { days: Date[]; week: Occurrence[
                   {height >= 90 && <span className="block__meta">{o.session.start}–{o.session.end}</span>}
                   {flag && height >= 60 && <Chip tone="warn">{flag}</Chip>}
                   {height >= 60 && due.slice(0, 2).map((d) => (
-                    <Chip key={d.id} tone="accent">{d.title} · {DAY_SHORT[d.due!.getDay()]} {!d.allDay && fmtTime(d.due!)}</Chip>
+                    <Chip key={d.id} tone={d.exercise?.key ? 'danger' : 'accent'}>{d.title} · {DAY_SHORT[d.due!.getDay()]} {!d.allDay && fmtTime(d.due!)}</Chip>
                   ))}
                 </Link>
               );

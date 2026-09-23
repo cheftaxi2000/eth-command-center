@@ -59,6 +59,17 @@ function toggleItem(item: Item, done: boolean) {
   if (done) toast({ text: `Erledigt: ${item.title}`, action: { label: 'Rückgängig', run: () => set(false) } }, 3500);
 }
 
+/** Delete a personal to-do or exam right from the row – no need to open the sheet first. */
+function deleteItem(item: Item) {
+  if (item.kind === 'exam') {
+    const removed = actions.deleteExam(item.id);
+    if (removed) toast({ text: `Gelöscht: ${item.title}`, action: { label: 'Rückgängig', run: () => actions.restoreExam(removed) } }, 3500);
+  } else if (item.kind === 'todo') {
+    const removed = actions.deleteTodo(item.id);
+    if (removed) toast({ text: `Gelöscht: ${item.title}`, action: { label: 'Rückgängig', run: () => actions.restoreTodo(removed) } }, 3500);
+  }
+}
+
 /** "korrekt" for a written exercise, "bestanden" for something you sit through */
 const correctWord = (role: string) => (role === 'quiz' || role === 'assessment' ? 'bestanden' : 'korrekt');
 
@@ -76,7 +87,8 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
       <span className="row__title">
         <span className="item__text">{item.title}</span>
         {item.kind === 'exam' && <Chip tone="accent">Prüfung</Chip>}
-        {ex && <Chip tone={ex.role === 'bonus' ? 'accent' : undefined}>{ex.typeShort}</Chip>}
+        {/* Bonus, Quiz und Zwischenprüfungen entscheiden über die Note – die stechen rot heraus */}
+        {ex && <Chip tone={ex.key ? 'danger' : undefined}>{ex.typeShort}</Chip>}
         {ex?.compulsory && <Chip tone="warn">Pflicht</Chip>}
         {item.inProgress && <Chip>In Arbeit</Chip>}
       </span>
@@ -96,7 +108,7 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
   );
 
   return (
-    <li className={cx('row', 'item', item.done && 'is-done', linger && 'is-linger')}>
+    <li className={cx('row', 'item', ex?.key && 'item--key', item.done && 'is-done', linger && 'is-linger')}>
       {item.kind === 'exam' ? (
         <span className="row__lead" aria-hidden="true"><Icon name="flag" size={20} /></span>
       ) : (
@@ -116,11 +128,25 @@ export function ItemRow({ item, now, hideCourse, linger, detailed }: { item: Ite
       ) : (
         <div className="item__body" title="Aus Notion – dort bearbeiten. Abhaken gilt nur in dieser App.">{body}</div>
       )}
+      {detailed && ex && (
+        <button type="button" className={cx('icon-btn', 'item__link', ex.ownUrl && 'is-set')}
+          title={ex.ownUrl ? 'Eigenen Link ändern' : 'Eigenen Link hinzufügen'}
+          aria-label={`${ex.ownUrl ? 'Link ändern' : 'Link hinzufügen'}: ${item.title}`}
+          onClick={() => ui.openLinkEditor({ mode: 'exercise', id: item.id })}>
+          <Icon name="link" size={18} />
+        </button>
+      )}
       {ex?.tracksCorrect && (item.done || ex.correct) && (
         <button type="button" className={cx('mini-toggle', ex.correct && 'is-on')}
           aria-pressed={ex.correct}
           onClick={() => actions.setExerciseCorrect(item.id, !ex.correct)}>
           <Icon name="check" size={14} />{correctWord(ex.role)}
+        </button>
+      )}
+      {editable && (
+        <button type="button" className="icon-btn item__delete" title="Löschen"
+          aria-label={`${item.title} löschen`} onClick={() => deleteItem(item)}>
+          <Icon name="trash" size={18} />
         </button>
       )}
       {info && (

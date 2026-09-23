@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { seed } from '../data/seed';
 import type { Course, ExerciseRole } from '../types';
-import { exerciseEntries, exerciseStatus } from './exercises';
+import { exerciseEntries, exerciseStatus, isKeyRole } from './exercises';
 import { useNow } from './now';
 import { GENERAL_ID, type SyncedState } from './state';
 import { usePersonal } from './store';
@@ -45,6 +45,10 @@ export interface ExerciseMeta {
   detail?: string;
   where?: string;
   url?: string;
+  /** Set when the student added the link themselves (then it is editable) */
+  ownUrl?: string;
+  /** Decides the grade – bonus task, quiz, midterm. These are the ones marked in red. */
+  key: boolean;
 }
 
 /** One row in any to-do/deadline list: a Notion task, an own to-do, an exam or an official exercise */
@@ -118,7 +122,10 @@ export function buildItems(s: SyncedState, now: Date): Item[] {
         dateNote: e.exercise.dateNote,
         detail: e.exercise.detail,
         where: e.type.where,
-        url: e.exercise.url,
+        // the student's own link wins – it is the one they picked for this exercise
+        url: st.url ?? e.exercise.url,
+        ownUrl: st.url,
+        key: isKeyRole(e.type.role),
       },
     };
   });
